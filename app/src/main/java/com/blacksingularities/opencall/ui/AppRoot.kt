@@ -1,5 +1,7 @@
 package com.blacksingularities.opencall.ui
 
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.animation.animateColorAsState
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
@@ -166,9 +168,8 @@ private fun BottomBar(vm: AppViewModel) {
             .fillMaxWidth()
             .background(Palette.Ink)
             .windowInsetsPadding(WindowInsets.navigationBars)
-            .padding(horizontal = 12.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 6.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         if (vm.settings.showFavoritesTab) TabItem(Icons.Rounded.Star, tr("Ulubione"), vm.tab == 0) { vm.selectTab(0) }
         // „Telefon” = historia i klawiatura w jednym widoku; ponowne dotknięcie rozwija/zwija klawiaturę.
@@ -181,21 +182,30 @@ private fun BottomBar(vm: AppViewModel) {
 
 /** Zakładka dolnego paska: sama ikona, a wybrana – pigułka z ikoną i nazwą. */
 @Composable
-private fun TabItem(icon: ImageVector, label: String, selected: Boolean, badge: Int = 0, onClick: () -> Unit) {
-    Box(Modifier.reactive(label, onClick = onClick).padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
-        Row(
+private fun RowScope.TabItem(icon: ImageVector, label: String, selected: Boolean, badge: Int = 0, onClick: () -> Unit) {
+    // Styl wspólny dla aplikacji Open: wybrana zakładka to biały kafel z czarną ikoną i podpisem.
+    val bg by animateColorAsState(if (selected) Color.White else Color.Transparent, label = "tabBg")
+    val tint by animateColorAsState(if (selected) Color.Black else Palette.TextDim, label = "tabTint")
+    Box(Modifier.weight(1f)) {
+        Column(
             Modifier
-                .clip(RoundedCornerShape(50))
-                .background(if (selected) Color.White else Color.Transparent)
-                .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow))
-                .padding(horizontal = if (selected) 18.dp else 20.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(6.dp))
+                .background(bg)
+                .reactive(label, onClick = onClick)
+                .padding(top = 7.dp, bottom = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Icon(icon, null, tint = if (selected) Palette.Ink else Palette.TextDim, modifier = Modifier.size(24.dp))
-            if (selected) {
-                Spacer(Modifier.width(8.dp))
-                Text(label, fontSize = 14.sp, color = Palette.Ink, fontWeight = FontWeight.Bold, maxLines = 1)
-            }
+            Icon(icon, null, tint = tint, modifier = Modifier.size(21.dp))
+            Spacer(Modifier.height(3.dp))
+            Text(
+                label,
+                color = tint,
+                fontSize = 10.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1,
+                softWrap = false,
+            )
         }
         if (badge > 0) {
             Text(
@@ -204,7 +214,8 @@ private fun TabItem(icon: ImageVector, label: String, selected: Boolean, badge: 
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Black,
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
+                    .align(Alignment.TopCenter)
+                    .padding(start = 26.dp, top = 2.dp)
                     .clip(RoundedCornerShape(50))
                     .background(Palette.Record)
                     .padding(horizontal = 5.dp, vertical = 1.dp),
