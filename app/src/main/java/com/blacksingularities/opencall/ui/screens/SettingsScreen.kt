@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.automirrored.rounded.CallMissed
 import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.BarChart
@@ -217,6 +218,9 @@ fun SettingsScreen(vm: AppViewModel, onRequestRole: () -> Unit) {
         Group(null) {
             ActionRow(Icons.Rounded.Person, tr("Pomysł i wykonanie"), "Adam Rędzikowski · redzikowski.com") {
                 vm.openIntent(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://redzikowski.com")))
+            }
+            ActionRow(Icons.Rounded.Email, tr("Kontakt"), "kontakt@redzikowski.com") {
+                vm.openIntent(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("mailto:kontakt@redzikowski.com")))
             }
             ActionRow(Icons.Rounded.LocalCafe, tr("Postaw kawę"), tr("Wesprzyj rozwój na buycoffee.to")) {
                 vm.openIntent(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://buycoffee.to/adamredzikowski")))
