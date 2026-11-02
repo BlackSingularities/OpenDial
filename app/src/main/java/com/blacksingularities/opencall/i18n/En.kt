@@ -14,8 +14,6 @@ internal val En: Map<String, String> = hashMapOf(
     "Adres" to "Address",
     "Aktualizacja nieudana: {0}" to "Update failed: {0}",
     "Aktualizacje" to "Updates",
-    "Sterowanie z zegarka" to "Watch controls",
-    "Odbieranie, rozłączanie i głośnik na zegarku Wear OS z OpenDial" to "Answer, hang up and speaker from a Wear OS watch running OpenDial",
     "Aktualizuj" to "Update",
     "Anuluj zaznaczenie" to "Clear selection",
     "Anuluj" to "Cancel",

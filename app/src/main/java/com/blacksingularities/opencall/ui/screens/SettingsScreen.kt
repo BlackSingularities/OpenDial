@@ -39,7 +39,6 @@ import androidx.compose.material.icons.rounded.Swipe
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.Vibration
-import androidx.compose.material.icons.rounded.Watch
 import androidx.compose.material.icons.rounded.Voicemail
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material3.LinearProgressIndicator
@@ -114,15 +113,6 @@ fun SettingsScreen(vm: AppViewModel, onRequestRole: () -> Unit) {
             SwitchRow(Icons.Rounded.Sensors, tr("Czujnik zbliżeniowy"), tr("Wygaszaj ekran przy uchu"), s.proximity) { v -> set { it.copy(proximity = v) } }
             SwitchRow(Icons.Rounded.Vibration, tr("Wibracja po połączeniu"), tr("Krótka wibracja, gdy rozmówca odbierze"), s.vibrateOnConnect) { v -> set { it.copy(vibrateOnConnect = v) } }
             SwitchRow(Icons.Rounded.Vibration, tr("Wibracja po zakończeniu"), tr("Gdy rozmowa się skończy"), s.vibrateOnEnd) { v -> set { it.copy(vibrateOnEnd = v) } }
-            SwitchRow(
-                Icons.Rounded.Watch,
-                tr("Sterowanie z zegarka"),
-                tr("Odbieranie, rozłączanie i głośnik na zegarku Wear OS z OpenDial"),
-                s.wearControl,
-            ) { v ->
-                set { it.copy(wearControl = v) }
-                com.blacksingularities.opencall.wear.WearBridge.refreshPresence(ctx, force = true)
-            }
         }
 
         SectionHeader(Icons.Rounded.Dialpad, tr("Klawiatura"))

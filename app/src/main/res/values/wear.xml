@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Zegarek po tej zdolności poznaje, że po drugiej stronie jest telefon z OpenDial. -->
-    <string-array name="android_wear_capabilities">
-        <item>opendial_phone</item>
-    </string-array>
-</resources>

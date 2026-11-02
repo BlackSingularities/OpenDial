@@ -14,8 +14,6 @@ Najnowszy plik jest zawsze w **[Releases → Latest](../../releases/latest)**. K
 2. Otwórz plik i zezwól na instalację z tego źródła.
 3. Wymagany Android 10 (API 29) lub nowszy.
 
-Do wydania dołączony jest też `OpenDial-Watch-x.y.z.apk` – nieobowiązkowa aplikacja na zegarek Wear OS (Android 11 / API 30 lub nowszy), opisana niżej.
-
 Aby OpenDial obsługiwał ekran rozmowy, odbieranie, blokowanie i powiadomienia o nieodebranych, ustaw go jako **domyślną aplikację telefonu** – aplikacja proponuje to przy pierwszym uruchomieniu (Ustawienia → Aplikacje domyślne → Telefon).
 
 ## Funkcje
@@ -38,25 +36,6 @@ Aby OpenDial obsługiwał ekran rozmowy, odbieranie, blokowanie i powiadomienia 
 - Odrzucenie z wiadomością SMS z listy szybkich odpowiedzi (edytowalnej w ustawieniach).
 - Wygaszanie ekranu przy uchu (czujnik zbliżeniowy), wibracja przy odebraniu i przy zakończeniu, pokazywanie ekranu na zablokowanym telefonie.
 - Powiadomienie o trwającej rozmowie z licznikiem czasu i powrotem do ekranu rozmowy.
-
-### Zegarek Wear OS
-Osobna aplikacja na zegarek (`OpenDial-Watch-x.y.z.apk`) daje pełne sterowanie rozmową z nadgarstka – telefon może zostać w kieszeni.
-
-| Na zegarku | Opis |
-|---|---|
-| **Połączenie przychodzące** | Imię albo numer, odebranie i odrzucenie, wyciszenie dzwonka bez odrzucania oraz odrzucenie SMS-em z listy szybkich odpowiedzi ustawionej na telefonie. |
-| **Trwająca rozmowa** | Licznik czasu (z korektą różnicy zegarów), mikrofon, głośnik, zawieszenie, klawiatura DTMF, a przy dwóch rozmowach zamiana i scalanie w konferencję. |
-| **Dzwonienie** | Ulubione kontakty i ostatnie połączenia – dotknięcie dzwoni przez telefon wybraną kartą SIM. |
-| **Bez otwartej aplikacji** | Zegarek sam pokazuje powiadomienie o dzwonieniu (z wibracją i przyciskami), a powiadomienie telefonu przestaje być mostkowane, więc nic się nie dubluje. |
-
-Zegarek nigdy nie dzwoni sam – wysyła tylko polecenia; wszystko wykonuje telefon. Przełącznik **Ustawienia → W trakcie rozmowy → Sterowanie z zegarka** wyłącza całą ścieżkę.
-
-Instalacja na zegarku (plik z wydania, podpisany tym samym kluczem co telefon):
-
-```bash
-adb connect <IP zegarka>:5555
-adb install OpenDial-Watch-0.2.0.apk
-```
 
 ### Historia połączeń
 - Przychodzące, wychodzące, nieodebrane, odrzucone, zablokowane i poczta głosowa – z filtrami i wyszukiwaniem.
@@ -113,13 +92,6 @@ app/src/main/java/com/blacksingularities/opencall/
                Avatar, Format, UpdateBanner, components/, screens/, theme/ (styl „glass”)
   i18n/        I18n, En – polskie teksty w kodzie, angielskie w mapie
   update/      Updates (GitHub API, porównanie wersji), UpdateManager (pobieranie, instalacja)
-  wear/        WearBridge (publikacja stanu, wykonywanie poleceń), WearListenerService
-
-shared/src/main/kotlin/…/wear/
-  WearProtocol  wspólny język telefonu i zegarka (JSON) – ten sam plik w obu modułach
-
-wear/src/main/java/…/wear/app/
-  WatchActivity, Screens, Phone (warstwa danych), WatchNotifications, WatchListenerService
 ```
 
 Warstwa danych nie ma Androida tam, gdzie nie musi: `PhoneText`, `VCard`, `Updates` i `SettingsStore` są czystym Kotlinem i mają testy jednostkowe (`app/src/test`). Test `TranslationsTest` skanuje źródła i nie przepuszcza napisu bez angielskiego odpowiednika.
@@ -130,7 +102,6 @@ Warstwa danych nie ma Androida tam, gdzie nie musi: `PhoneText`, `VCard`, `Updat
 ./gradlew :app:testDebugUnitTest          # testy jednostkowe
 ./gradlew :app:assembleDebug              # APK do debugowania
 ./gradlew :app:assembleRelease -PversionName=0.1.0 -PversionCode=1
-./gradlew :wear:assembleRelease -PversionName=0.1.0 -PversionCode=1   # aplikacja na zegarek
 ```
 
 Potrzebny JDK 17+ i Android SDK (ścieżka w `local.properties` jako `sdk.dir`). Bez zmiennych `SIGNING_*` wydanie podpisuje się kluczem debug.

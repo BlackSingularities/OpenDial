@@ -60,7 +60,6 @@ android {
         compose = true
         buildConfig = true
     }
-    sourceSets["main"].java.srcDir("../shared/src/main/kotlin")
     lint {
         abortOnError = false
         checkReleaseBuilds = false
@@ -88,8 +87,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
 
-    // Warstwa danych Wear OS: stan rozmowy na zegarku i polecenia z nadgarstka.
-    implementation("com.google.android.gms:play-services-wearable:19.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
 
     implementation(composeBom)

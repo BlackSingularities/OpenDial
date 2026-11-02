@@ -85,8 +85,6 @@ object CallNotifications {
                 .setContentIntent(open)
                 .setFullScreenIntent(open, true)
                 .setVisibility(Notification.VISIBILITY_PUBLIC)
-                // Zegarek z OpenDial ma własny ekran dzwonienia – mostkowane powiadomienie by się dublowało.
-                .setLocalOnly(com.blacksingularities.opencall.wear.WearBridge.handlesCallUi(context))
             if (Build.VERSION.SDK_INT >= 31) {
                 b.setStyle(Notification.CallStyle.forIncomingCall(person, decline, answer))
             } else {
@@ -111,7 +109,6 @@ object CallNotifications {
                 .setOnlyAlertOnce(true)
                 .setContentIntent(open)
                 .setVisibility(Notification.VISIBILITY_PUBLIC)
-                .setLocalOnly(com.blacksingularities.opencall.wear.WearBridge.handlesCallUi(context))
             if (c.active && c.connectTime > 0) {
                 b.setUsesChronometer(true).setWhen(c.connectTime).setShowWhen(true)
             }

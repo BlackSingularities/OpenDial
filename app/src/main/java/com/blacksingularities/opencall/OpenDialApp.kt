@@ -5,7 +5,6 @@ import com.blacksingularities.opencall.call.CallManager
 import com.blacksingularities.opencall.call.CallNotifications
 import com.blacksingularities.opencall.data.SettingsStore
 import com.blacksingularities.opencall.i18n.I18n
-import com.blacksingularities.opencall.wear.WearBridge
 
 class OpenDialApp : Application() {
     override fun onCreate() {
@@ -13,6 +12,5 @@ class OpenDialApp : Application() {
         I18n.apply(SettingsStore(this).load().language)
         CallManager.attach(this)
         CallNotifications.channels(this)
-        WearBridge.refreshPresence(this)
     }
 }

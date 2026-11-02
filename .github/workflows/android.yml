@@ -67,20 +67,16 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
-        run: gradle :app:assembleRelease :wear:assembleRelease -PversionCode=${{ needs.version.outputs.code }} -PversionName=${{ needs.version.outputs.name }} --stacktrace
+        run: gradle :app:assembleRelease -PversionCode=${{ needs.version.outputs.code }} -PversionName=${{ needs.version.outputs.name }} --stacktrace
 
-      # Dwa pliki: telefon i – podpisany tym samym kluczem – zegarek Wear OS.
       - name: Przygotowanie plików
         run: |
           cp app/build/outputs/apk/release/app-release.apk "OpenDial-${{ needs.version.outputs.name }}.apk"
-          cp wear/build/outputs/apk/release/wear-release.apk "OpenDial-Watch-${{ needs.version.outputs.name }}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
           name: OpenDial-${{ needs.version.outputs.name }}-android
-          path: |
-            OpenDial-${{ needs.version.outputs.name }}.apk
-            OpenDial-Watch-${{ needs.version.outputs.name }}.apk
+          path: OpenDial-${{ needs.version.outputs.name }}.apk
 
   release:
     needs: [version, android]
@@ -109,8 +105,8 @@ jobs:
             LOG=$(git log -5 --pretty='- %s' "$GITHUB_SHA")
             NOTES=$(printf 'Poprawki i ulepszenia:\n\n%s' "$LOG")
           fi
-          FOOTER=$(printf -- '---\nPobierz **OpenDial-%s.apk** i zainstaluj na telefonie (Android 10+). Kolejne wersje aplikacja pobierze sama.\n\nZegarek Wear OS: **OpenDial-Watch-%s.apk** – plik dla zegarka, instalowany przez `adb` (nieobowiązkowy).' "$NAME" "$NAME")
-          gh release create "$TAG" "dist/OpenDial-$NAME.apk" "dist/OpenDial-Watch-$NAME.apk" \
+          FOOTER=$(printf -- '---\nPobierz **OpenDial-%s.apk** i zainstaluj na telefonie (Android 10+). Kolejne wersje aplikacja pobierze sama.' "$NAME")
+          gh release create "$TAG" "dist/OpenDial-$NAME.apk" \
             --target "$GITHUB_SHA" \
             --title "OpenDial $NAME" \
             --notes "$(printf '%s\n\n%s' "$NOTES" "$FOOTER")" \

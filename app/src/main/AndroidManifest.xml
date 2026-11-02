@@ -144,25 +144,6 @@
             android:name=".call.CallActionReceiver"
             android:exported="false" />
 
-        <!-- Zegarek Wear OS: polecenia z nadgarstka i wiadomość o pojawieniu się zegarka. -->
-        <service
-            android:name=".wear.WearListenerService"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
-                <data
-                    android:scheme="wear"
-                    android:host="*"
-                    android:pathPrefix="/opendial" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="com.google.android.gms.wearable.CAPABILITY_CHANGED" />
-                <data
-                    android:scheme="wear"
-                    android:host="*" />
-            </intent-filter>
-        </service>
-
         <receiver
             android:name=".update.UpdateReceiver"
             android:exported="false" />
