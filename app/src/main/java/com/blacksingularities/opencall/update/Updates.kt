@@ -6,7 +6,7 @@ import java.io.File
 
 /** Repozytorium z wydaniami aplikacji. */
 const val UPDATE_REPO = "BlackSingularities/OpenDial"
-const val UPDATE_API = "https://redzikowski.com/api/github/repos/$UPDATE_REPO/releases/latest"
+const val UPDATE_API = "https://redzikowski.com/api/releases/repos/$UPDATE_REPO/releases/latest"
 
 data class ReleaseInfo(
     val version: String,
