@@ -167,7 +167,7 @@ internal val En: Map<String, String> = hashMapOf(
     "Notatka" to "Note",
     "Nowa odpowiedź" to "New reply",
     "Nowa reguła" to "New rule",
-    "Nowa wersja na GitHubie" to "New version on GitHub",
+    "Dostępna jest nowa wersja" to "A new version is available",
     "Nowa wersja {0}" to "New version {0}",
     "Nowy kontakt" to "New contact",
     "Np. „0700” (linie płatne), „+48 22 30*” (telemarketing). Gwiazdka zastępuje dowolne cyfry." to
@@ -235,8 +235,8 @@ internal val En: Map<String, String> = hashMapOf(
     "Przesuń gałkę w prawo, aby odebrać – bez przypadkowych odebrań w kieszeni" to
         "Drag the knob to the right to answer — no pocket answers",
     "Przełącz na to połączenie" to "Switch to this call",
-    "Przy uruchomieniu, najwyżej co 6 godzin – z GitHub Releases" to
-        "On launch, at most every 6 hours — from GitHub Releases",
+    "Przy uruchomieniu, najwyżej co 6 godzin" to
+        "On launch, at most every 6 hours",
     "Przychodzące" to "Incoming",
     "Przyrostek" to "Suffix",
     "Przytrzymaj cyfrę na pustej klawiaturze, aby od razu zadzwonić. „1” to poczta głosowa." to

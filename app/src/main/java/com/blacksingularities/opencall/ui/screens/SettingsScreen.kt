@@ -202,7 +202,7 @@ fun SettingsScreen(vm: AppViewModel, onRequestRole: () -> Unit) {
 
         SectionHeader(Icons.Rounded.SystemUpdate, tr("Aktualizacje"))
         Group(null) {
-            SwitchRow(Icons.Rounded.SystemUpdate, tr("Sprawdzaj automatycznie"), tr("Przy uruchomieniu, najwyżej co 6 godzin – z GitHub Releases"), s.autoUpdate) { v -> set { it.copy(autoUpdate = v) } }
+            SwitchRow(Icons.Rounded.SystemUpdate, tr("Sprawdzaj automatycznie"), tr("Przy uruchomieniu, najwyżej co 6 godzin"), s.autoUpdate) { v -> set { it.copy(autoUpdate = v) } }
             val u = vm.update
             ActionRow(
                 Icons.Rounded.SystemUpdate,
@@ -217,7 +217,7 @@ fun SettingsScreen(vm: AppViewModel, onRequestRole: () -> Unit) {
                     is UpdateState.Failed -> u.message
                     is UpdateState.Downloading -> tr("Pobieranie… {0}%", (u.progress * 100).toInt())
                     is UpdateState.Installing -> tr("Instalowanie…")
-                    is UpdateState.Available -> tr("Nowa wersja na GitHubie")
+                    is UpdateState.Available -> tr("Dostępna jest nowa wersja")
                     else -> tr("Wersja {0}", UpdateManager.currentVersion)
                 },
             ) { vm.updateNow() }

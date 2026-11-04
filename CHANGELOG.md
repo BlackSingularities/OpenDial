@@ -1,5 +1,9 @@
 # Zmiany
 
+## 0.4.4
+
+- Komunikat o nowej wersji bez listy zmian, linków i informacji, skąd pobierana jest aktualizacja.
+
 ## 0.4.3
 
 - Szczypanie w kontaktach działa jak w Poweramp: rozsuwanie palców powiększa listę, aż zamieni się w coraz większe kafelki, a zsuwanie zmniejsza je i zagęszcza listę.

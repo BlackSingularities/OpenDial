@@ -28,7 +28,7 @@ class UpdatesTest {
         assertEquals("0.2.0", info.version)
         assertEquals("https://example.com/app.apk", info.assetUrl)
         assertEquals(7_340_032L, info.sizeBytes)
-        assertEquals("https://github.com/BlackSingularities/OpenDial/releases/tag/v0.2.0", info.pageUrl)
+        assertEquals("", info.pageUrl)
     }
 
     @Test

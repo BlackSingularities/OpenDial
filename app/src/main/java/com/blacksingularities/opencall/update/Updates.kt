@@ -50,7 +50,7 @@ fun parseRelease(json: String, assetSuffix: String = ".apk"): ReleaseInfo {
         version = o.optString("tag_name").removePrefix("v"),
         assetUrl = url,
         sizeBytes = size,
-        pageUrl = o.optString("html_url"),
+        pageUrl = "",
     )
 }
 
