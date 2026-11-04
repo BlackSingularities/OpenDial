@@ -35,7 +35,8 @@ data class AppSettings(
     val onlyWithNumbers: Boolean = false,
     val showFrequent: Boolean = true,
     /** Układ listy kontaktów: 1 = lista, 2–4 = kafelki (zmieniane szczypaniem). */
-    val contactColumns: Int = 1,
+    /** Poziom przybliżenia kontaktów: 0–4 lista od najgęstszej, 5–7 kafelki coraz większe. */
+    val contactZoom: Int = 2,
     /** Zakładka „Ulubione” na dolnym pasku; wyłączona – aplikacja startuje od „Ostatnich”. */
     val showFavoritesTab: Boolean = true,
     // W trakcie rozmowy
@@ -99,7 +100,7 @@ class SettingsStore(context: Context) {
             put("nameOrder", s.nameOrder.name)
             put("onlyWithNumbers", s.onlyWithNumbers)
             put("showFrequent", s.showFrequent)
-            put("contactColumns", s.contactColumns)
+            put("contactZoom", s.contactZoom)
             put("showFavoritesTab", s.showFavoritesTab)
             put("proximity", s.proximity)
             put("vibrateOnConnect", s.vibrateOnConnect)
@@ -148,7 +149,12 @@ class SettingsStore(context: Context) {
                 nameOrder = e("nameOrder", d.nameOrder),
                 onlyWithNumbers = b("onlyWithNumbers", d.onlyWithNumbers),
                 showFrequent = b("showFrequent", d.showFrequent),
-                contactColumns = o.optInt("contactColumns", d.contactColumns).coerceIn(1, 4),
+                contactZoom = if (o.has("contactZoom")) {
+                    o.optInt("contactZoom", d.contactZoom).coerceIn(0, 7)
+                } else {
+                    // Starsze wersje zapisywały liczbę kolumn (1 = lista, 2–4 = kafelki).
+                    when (o.optInt("contactColumns", 1)) { 4 -> 5; 3 -> 6; 2 -> 7; else -> d.contactZoom }
+                },
                 showFavoritesTab = b("showFavoritesTab", d.showFavoritesTab),
                 proximity = b("proximity", d.proximity),
                 vibrateOnConnect = b("vibrateOnConnect", d.vibrateOnConnect),

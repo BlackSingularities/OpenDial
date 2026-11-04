@@ -99,8 +99,9 @@ fun ContactsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermission
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
-    // Układ: 1 = lista, 2–4 = kafelki. Szczypanie przechodzi płynnie między poziomami.
-    var columns by remember { mutableStateOf(vm.settings.contactColumns.coerceIn(1, 4)) }
+    // Rozsuwanie palców powiększa listę aż do kafelków, zsuwanie zagęszcza ją – jak w Poweramp.
+    var level by remember { mutableStateOf(vm.settings.contactZoom.coerceIn(0, ZoomLevels.lastIndex)) }
+    val columns = ZoomLevels[level].columns
     val zoom = remember { Animatable(1f) }
     val fade = remember { Animatable(1f) }
     var origin by remember { mutableStateOf(TransformOrigin.Center) }
@@ -166,22 +167,21 @@ fun ContactsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermission
                         scope.launch { zoom.stop(); fade.stop() }
                     },
                     onPinch = { acc, c ->
-                        val level = ZoomLevels.indexOf(columns)
                         val canIn = level < ZoomLevels.lastIndex
                         val canOut = level > 0
                         when {
-                            acc > 1.32f && canIn || acc < 0.76f && canOut -> {
-                                val next = ZoomLevels[level + if (acc > 1f) 1 else -1]
+                            acc > 1.25f && canIn || acc < 0.8f && canOut -> {
+                                val next = level + if (acc > 1f) 1 else -1
                                 val w = with(density) { gridWidth.toDp() }
-                                val ratio = tileSize(next, w) / tileSize(columns, w)
+                                val ratio = avatarSize(next, w) / avatarSize(level, w)
                                 // Element pod palcami zostaje pod palcami po zmianie układu.
                                 val anchor = listState.layoutInfo.visibleItemsInfo.firstOrNull {
                                     c.y >= it.offset.y && c.y < it.offset.y + it.size.height && (columns == 1 || (c.x >= it.offset.x && c.x < it.offset.x + it.size.width))
                                 } ?: listState.layoutInfo.visibleItemsInfo.firstOrNull()
                                 val anchorTop = anchor?.offset?.y?.toFloat() ?: 0f
                                 val visual = zoom.value
-                                columns = next
-                                vm.updateSettings { it.copy(contactColumns = next) }
+                                level = next
+                                vm.updateSettings { it.copy(contactZoom = next) }
                                 if (vm.settings.haptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 scope.launch {
                                     zoom.snapTo((visual / ratio).coerceIn(0.55f, 1.8f))
@@ -251,7 +251,7 @@ fun ContactsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermission
                         val onLong: () -> Unit = { selection = selection + c.id }
                         if (columns == 1) {
                             Box(Modifier.animateItem()) {
-                                ContactRow(vm, c, selected = c.id in selection, selecting = selecting, onClick = onClick, onLong = onLong)
+                                ContactRow(vm, c, selected = c.id in selection, selecting = selecting, avatar = ZoomLevels[level].avatar, onClick = onClick, onLong = onLong)
                             }
                         } else {
                             ContactTile(c, columns, selected = c.id in selection, selecting = selecting, onClick = onClick, onLong = onLong, modifier = Modifier.animateItem())
@@ -294,9 +294,12 @@ fun ContactRow(
     selected: Boolean = false,
     selecting: Boolean = false,
     subtitle: String? = null,
+    avatar: Dp = 42.dp,
     onClick: () -> Unit,
     onLong: () -> Unit = {},
 ) {
+    // Tekst i odstępy rosną razem z awatarem; w najgęstszym układzie zostaje sama nazwa.
+    val scale = avatar / 42.dp
     Row(
         Modifier
             .padding(horizontal = 8.dp)
@@ -304,7 +307,7 @@ fun ContactRow(
             .clip(RoundedCornerShape(18.dp))
             .background(if (selected) Color.White.copy(alpha = 0.12f) else Color.Transparent)
             .combinedClickable(onClick = onClick, onLongClick = onLong)
-            .padding(horizontal = 10.dp, vertical = 7.dp),
+            .padding(horizontal = 10.dp, vertical = 7.dp * scale.coerceAtMost(1.3f)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (selecting) {
@@ -316,32 +319,45 @@ fun ContactRow(
             )
             Spacer(Modifier.width(10.dp))
         }
-        Avatar(c.name, c.photoUri, 42.dp)
+        Avatar(c.name, c.photoUri, avatar)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(c.name, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Text(c.name, fontSize = (16f * scale.coerceIn(0.85f, 1.3f)).sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 if (c.starred) {
                     Spacer(Modifier.width(5.dp))
                     Icon(Icons.Rounded.Star, null, tint = Palette.TextDim, modifier = Modifier.size(14.dp))
                 }
             }
             val sub = subtitle ?: c.primaryNumber?.let { "${Format.phoneType(it.type, it.label)} · ${PhoneText.pretty(it.number)}" }
-            if (sub != null) Text(sub, fontSize = 12.sp, color = Palette.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (sub != null && avatar > 30.dp) Text(sub, fontSize = (12f * scale.coerceIn(0.9f, 1.25f)).sp, color = Palette.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         val n = c.primaryNumber
         if (n != null && !selecting) {
-            RoundIcon(Icons.Rounded.Call, tr("Zadzwoń do {0}", c.name), size = 38.dp) { vm.call(n.number, c.name) }
+            RoundIcon(Icons.Rounded.Call, tr("Zadzwoń do {0}", c.name), size = (avatar - 4.dp).coerceIn(30.dp, 48.dp)) { vm.call(n.number, c.name) }
         }
     }
 }
 
-/** Kolejność poziomów przybliżenia: lista, potem coraz większe kafelki. */
-private val ZoomLevels = listOf(1, 4, 3, 2)
+private data class ZoomLevel(val columns: Int, val avatar: Dp = 0.dp)
+
+/** Poziomy przybliżenia od najgęstszej listy, przez coraz większą, po coraz większe kafelki. */
+private val ZoomLevels = listOf(
+    ZoomLevel(1, 26.dp),
+    ZoomLevel(1, 34.dp),
+    ZoomLevel(1, 42.dp),
+    ZoomLevel(1, 52.dp),
+    ZoomLevel(1, 64.dp),
+    ZoomLevel(4),
+    ZoomLevel(3),
+    ZoomLevel(2),
+)
 
 /** Przybliżony rozmiar awatara na danym poziomie – do płynnego przejścia między układami. */
-private fun tileSize(columns: Int, width: Dp): Dp =
-    if (columns == 1) 42.dp else ((width - 30.dp) / columns - 20.dp).coerceAtLeast(24.dp)
+private fun avatarSize(level: Int, width: Dp): Dp {
+    val z = ZoomLevels[level]
+    return if (z.columns == 1) z.avatar else ((width - 30.dp) / z.columns - 20.dp).coerceAtLeast(24.dp)
+}
 
 /**
  * Szczypanie dwoma palcami. [onPinch] dostaje łączne przybliżenie od początku (lub od ostatniej

@@ -1,5 +1,9 @@
 # Zmiany
 
+## 0.4.3
+
+- Szczypanie w kontaktach działa jak w Poweramp: rozsuwanie palców powiększa listę, aż zamieni się w coraz większe kafelki, a zsuwanie zmniejsza je i zagęszcza listę.
+
 ## 0.4.2
 
 - Czyszczenie historii połączeń przeniesione z górnego paska do Ustawień (Historia i kontakty), dzięki czemu filtry mają więcej miejsca.
