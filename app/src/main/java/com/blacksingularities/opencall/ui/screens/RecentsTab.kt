@@ -97,7 +97,6 @@ fun RecentsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions
     var query by rememberSaveable { mutableStateOf("") }
     var expanded by remember { mutableStateOf<String?>(null) }
     var menu by remember { mutableStateOf<CallGroup?>(null) }
-    var confirmClear by remember { mutableStateOf(false) }
 
     val list = remember(vm.groups, filter, query) {
         val q = PhoneText.fold(query.trim())
@@ -145,9 +144,7 @@ fun RecentsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions
                     TabChip(Icons.Rounded.Block, tr("Zablokowane"), filter == RecentFilter.BLOCKED, compact = true) { filter = RecentFilter.BLOCKED }
                 }
             },
-        ) {
-            if (!searching) RoundIcon(Icons.Rounded.DeleteSweep, tr("Wyczyść historię"), enabled = vm.calls.isNotEmpty()) { confirmClear = true }
-        }
+        )
         Box(Modifier.weight(1f).fillMaxWidth()) {
         if (typing) {
             DialSuggestions(vm, Modifier.fillMaxSize())
@@ -209,21 +206,6 @@ fun RecentsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions
     }
 
     menu?.let { g -> CallMenu(vm, g) { menu = null } }
-    if (confirmClear) {
-        DarkDialog(
-            tr("Wyczyścić historię?"),
-            onDismiss = { confirmClear = false },
-            buttons = {
-                PillButton(tr("Anuluj"), primary = false) { confirmClear = false }
-                PillButton(tr("Wyczyść"), danger = true) {
-                    confirmClear = false
-                    vm.clearCallLog()
-                }
-            },
-        ) {
-            Text(tr("Usunie wszystkie wpisy rejestru połączeń z telefonu ({0}). Tego nie da się cofnąć.", vm.calls.size), color = Palette.TextDim, fontSize = 13.sp)
-        }
-    }
 }
 
 private fun openDetails(vm: AppViewModel, g: CallGroup) {

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Contacts
+import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Dialpad
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.GraphicEq
@@ -66,6 +67,8 @@ import com.blacksingularities.opencall.i18n.tr
 import com.blacksingularities.opencall.ui.AppViewModel
 import com.blacksingularities.opencall.ui.Route
 import com.blacksingularities.opencall.ui.components.ActionRow
+import com.blacksingularities.opencall.ui.components.DarkDialog
+import com.blacksingularities.opencall.ui.components.PillButton
 import com.blacksingularities.opencall.ui.components.ChoiceDialog
 import com.blacksingularities.opencall.ui.components.CompactChoice
 import com.blacksingularities.opencall.ui.components.Group
@@ -83,6 +86,7 @@ fun SettingsScreen(vm: AppViewModel, onRequestRole: () -> Unit) {
     fun set(t: (AppSettings) -> AppSettings) = vm.updateSettings(t)
     var simPicker by remember { mutableStateOf(false) }
     var startPicker by remember { mutableStateOf(false) }
+    var confirmClear by remember { mutableStateOf(false) }
 
     Page(tr("Ustawienia"), onBack = { vm.pop() }) {
         if (!vm.isDefaultDialer) {
@@ -162,6 +166,9 @@ fun SettingsScreen(vm: AppViewModel, onRequestRole: () -> Unit) {
                 SwitchRow(Icons.Rounded.Favorite, tr("Sekcja „Często”"), tr("Najczęstsi rozmówcy pod ulubionymi"), s.showFrequent) { v -> set { it.copy(showFrequent = v) } }
             } else {
                 ActionRow(Icons.Rounded.Star, tr("Ulubione"), tr("Otwórz listę ulubionych kontaktów")) { vm.push(Route.Favorites) }
+            }
+            if (vm.calls.isNotEmpty()) {
+                ActionRow(Icons.Rounded.DeleteSweep, tr("Wyczyść historię"), tr("Usuń cały rejestr połączeń z telefonu"), danger = true) { confirmClear = true }
             }
         }
 
@@ -245,6 +252,21 @@ fun SettingsScreen(vm: AppViewModel, onRequestRole: () -> Unit) {
         Spacer(Modifier.height(16.dp))
     }
 
+    if (confirmClear) {
+        DarkDialog(
+            tr("Wyczyścić historię?"),
+            onDismiss = { confirmClear = false },
+            buttons = {
+                PillButton(tr("Anuluj"), primary = false) { confirmClear = false }
+                PillButton(tr("Wyczyść"), danger = true) {
+                    confirmClear = false
+                    vm.clearCallLog()
+                }
+            },
+        ) {
+            Text(tr("Usunie wszystkie wpisy rejestru połączeń z telefonu ({0}). Tego nie da się cofnąć.", vm.calls.size), color = Palette.TextDim, fontSize = 13.sp)
+        }
+    }
     if (simPicker) {
         ChoiceDialog(
             tr("Domyślna karta SIM"),

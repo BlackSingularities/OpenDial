@@ -276,6 +276,7 @@ internal val En: Map<String, String> = hashMapOf(
     "Systemowy" to "System",
     "Szczegóły kontaktu" to "Contact details",
     "Szczegóły" to "Details",
+    "Usuń cały rejestr połączeń z telefonu" to "Delete the entire call log from the phone",
     "Szukaj" to "Search",
     "Zamknij wyszukiwanie" to "Close search",
     "Szukaj w historii" to "Search history",

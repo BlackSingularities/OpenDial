@@ -1,5 +1,9 @@
 # Zmiany
 
+## 0.4.2
+
+- Czyszczenie historii połączeń przeniesione z górnego paska do Ustawień (Historia i kontakty), dzięki czemu filtry mają więcej miejsca.
+
 ## 0.4.1
 
 - Filtry historii (wszystkie, nieodebrane i inne) są teraz w górnym pasku, bez dodatkowego rzędu pod nim, jak w OpenSMS.
