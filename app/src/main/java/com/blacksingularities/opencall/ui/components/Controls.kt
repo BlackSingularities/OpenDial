@@ -54,6 +54,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -415,6 +417,7 @@ fun DarkField(
     minLines: Int = 1,
     leading: ImageVector? = null,
     trailing: @Composable (() -> Unit)? = null,
+    password: Boolean = false,
 ) {
     OutlinedTextField(
         value = value,
@@ -422,7 +425,8 @@ fun DarkField(
         label = { Text(label) },
         singleLine = singleLine,
         minLines = if (singleLine) 1 else minLines,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboard),
+        keyboardOptions = KeyboardOptions(keyboardType = if (password) KeyboardType.Password else keyboard),
+        visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
         leadingIcon = leading?.let { { Icon(it, null, tint = Palette.TextDim) } },
         trailingIcon = trailing,
         modifier = modifier.fillMaxWidth(),

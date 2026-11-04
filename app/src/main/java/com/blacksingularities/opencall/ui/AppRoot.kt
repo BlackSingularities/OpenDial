@@ -60,6 +60,8 @@ import com.blacksingularities.opencall.i18n.tr
 import com.blacksingularities.opencall.ui.components.DarkDialog
 import com.blacksingularities.opencall.ui.components.MessagePill
 import com.blacksingularities.opencall.ui.components.PillButton
+import com.blacksingularities.opencall.ui.screens.AiHistoryScreen
+import com.blacksingularities.opencall.ui.screens.AiScreeningScreen
 import com.blacksingularities.opencall.ui.screens.BackupScreen
 import com.blacksingularities.opencall.ui.screens.BlockedScreen
 import com.blacksingularities.opencall.ui.screens.ContactInfoScreen
@@ -96,6 +98,8 @@ fun AppRoot(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions: (
                         is Route.Edit -> EditContactScreen(vm, r.draft)
                         Route.Settings -> SettingsScreen(vm, onRequestRole)
                         Route.Blocked -> BlockedScreen(vm)
+                        Route.AiScreening -> AiScreeningScreen(vm)
+                        Route.AiHistory -> AiHistoryScreen(vm)
                         Route.Stats -> StatsScreen(vm)
                         Route.Duplicates -> DuplicatesScreen(vm)
                         Route.SpeedDial -> SpeedDialScreen(vm)

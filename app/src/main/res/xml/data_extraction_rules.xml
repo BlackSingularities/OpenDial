@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Klucze API i treści rozmów asystenta nie trafiają do kopii ani na nowy telefon (Android 12+). -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="opendial_secrets.xml" />
+        <exclude domain="sharedpref" path="opendial_ai_log.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="opendial_secrets.xml" />
+        <exclude domain="sharedpref" path="opendial_ai_log.xml" />
+    </device-transfer>
+</data-extraction-rules>

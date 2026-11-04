@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Klucze API i treści rozmów asystenta nie trafiają do kopii zapasowej (Android 11 i starsze). -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="opendial_secrets.xml" />
+    <exclude domain="sharedpref" path="opendial_ai_log.xml" />
+</full-backup-content>

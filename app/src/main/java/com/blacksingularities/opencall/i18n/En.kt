@@ -26,8 +26,6 @@ internal val En: Map<String, String> = hashMapOf(
     "Wyciszono" to "Silenced",
     "Zwiń klawiaturę" to "Hide keypad",
     "Aplikacje domyślne" to "Default apps",
-    "Bez reklam, bez śledzenia, bez kont. Dane zostają w telefonie – aplikacja łączy się z internetem tylko po aktualizacje." to
-        "No ads, no tracking, no accounts. Your data stays on the phone — the app goes online only to check for updates.",
     "Blokowanie działa, gdy OpenDial jest domyślną aplikacją telefonu." to
         "Blocking works once OpenDial is your default phone app.",
     "Blokowanie i narzędzia" to "Blocking and tools",
@@ -454,4 +452,257 @@ internal val En: Map<String, String> = hashMapOf(
     "Łącznie rozmów: {0}" to "Calls in total: {0}",
     "Średnia rozmowa" to "Average call",
     "…i {0} wcześniejszych" to "…and {0} earlier",
+    // Asystent AI
+    "AI odbiera nieznane numery i pyta o cel" to
+        "AI answers unknown numbers and asks why they called",
+    "Adres serwera (https://…)" to
+        "Server address (https://…)",
+    "Adres serwera musi zaczynać się od https://" to
+        "The server address must start with https://",
+    "Agent uprzedzi o tym dzwoniącego" to
+        "The agent tells the caller about it",
+    "Agent zaktualizowany" to
+        "Agent updated",
+    "Android nie daje zwykłej aplikacji dostępu do dźwięku rozmowy, więc rozmawia agent głosowy w chmurze, na Twoim koncie i za Twoją opłatą. Telefon odrzuca połączenie, a operator przekierowuje je na numer agenta." to
+        "Android gives regular apps no access to call audio, so a cloud voice agent does the talking, on your account and at your expense. The phone declines the call and your carrier forwards it to the agent's number.",
+    "Aplikacja sama utworzy agenta i przypisze go do numeru. Numer kupisz lub zaimportujesz w panelu Vapi; streszczenie przy przełączeniu wymaga numeru Twilio." to
+        "The app creates the agent and assigns it to a number for you. Buy or import the number in the Vapi dashboard; the spoken summary on transfer needs a Twilio number.",
+    "Asystent AI" to
+        "AI assistant",
+    "Asystent AI odbiera połączenie" to
+        "The AI assistant is taking a call",
+    "Asystent działa, gdy OpenDial jest domyślną aplikacją telefonu." to
+        "The assistant works once OpenDial is your default phone app.",
+    "Asystent nie odebrał: {0}" to
+        "The assistant didn't answer: {0}",
+    "Asystent przełączył: {0}" to
+        "The assistant put through: {0}",
+    "Asystent rozmawiał: {0}" to
+        "The assistant spoke to: {0}",
+    "Asystent włączony" to
+        "Assistant on",
+    "Bez reklam, bez śledzenia, bez kont. Dane zostają w telefonie – aplikacja łączy się z internetem tylko po aktualizacje i z platformą asystenta AI, jeśli go włączysz." to
+        "No ads, no tracking, no accounts. Your data stays on the phone — the app goes online only to check for updates and to reach the AI assistant platform, if you turn it on.",
+    "Blokuj numery ze spamem" to
+        "Block spam numbers",
+    "Brak streszczenia – szczegóły w historii asystenta" to
+        "No summary — see the assistant history for details",
+    "Brak uprawnienia do połączeń" to
+        "Phone permission is missing",
+    "Błąd platformy (kod {0})" to
+        "Platform error (code {0})",
+    "Cicho" to
+        "Silent",
+    "Ciepły" to
+        "Warm",
+    "Ciepły i swobodny" to
+        "Warm and relaxed",
+    "Co jest ważne – przełącz do mnie" to
+        "What matters — put them through",
+    "Czas dzwonienia" to
+        "Ringing time",
+    "Czego nie chcę – zakończ rozmowę" to
+        "What I don't want — end the call",
+    "Do godziny" to
+        "Until",
+    "Dodatkowe wskazówki dla agenta" to
+        "Extra instructions for the agent",
+    "Domyślnie spam znika bez śladu, zostaje w historii asystenta" to
+        "By default spam disappears quietly and stays in the assistant history",
+    "Dopisuje numer do listy zablokowanych" to
+        "Adds the number to the block list",
+    "Drugi telefon z rzędu" to
+        "Second call in a row",
+    "Dzwoniący usłyszy: {0}" to
+        "The caller will hear: {0}",
+    "Głos (puste = z panelu platformy)" to
+        "Voice (empty = from the platform dashboard)",
+    "Historia asystenta" to
+        "Assistant history",
+    "Identyfikator agenta" to
+        "Agent ID",
+    "Imię asystenta (opcjonalnie)" to
+        "Assistant's name (optional)",
+    "Jeszcze pusto" to
+        "Nothing yet",
+    "Język rozmowy" to
+        "Call language",
+    "Klucz API" to
+        "API key",
+    "Klucz API i numer agenta" to
+        "API key and agent number",
+    "Klucz działa – wybierz numer" to
+        "The key works — pick a number",
+    "Klucz działa, ale na koncie nie ma numeru – dodaj go w panelu platformy" to
+        "The key works, but the account has no number — add one in the platform dashboard",
+    "Kod u operatora, jednorazowo" to
+        "A one-time carrier code",
+    "Krótki" to
+        "Brief",
+    "Kto dzwoni naprawdę" to
+        "Who's really calling",
+    "Kto trafia do asystenta" to
+        "Who goes to the assistant",
+    "Limit rozmowy" to
+        "Call limit",
+    "Model AI (puste = z panelu platformy)" to
+        "AI model (empty = from the platform dashboard)",
+    "Możliwie krótko" to
+        "As short as possible",
+    "Nagrywaj rozmowy" to
+        "Record calls",
+    "Najpierw podaj numer agenta" to
+        "Enter the agent's number first",
+    "Nie" to
+        "No",
+    "Nie dotarło do agenta" to
+        "Never reached the agent",
+    "Nie udało się bezpiecznie zapisać klucza" to
+        "Couldn't store the key securely",
+    "Nie znaleziono agenta na platformie" to
+        "Agent not found on the platform",
+    "Nieznane numery trafiają do AI" to
+        "Unknown numbers go to the AI",
+    "Nieznany numer nie dzwoni. Odbiera AI, pyta o cel i tylko ważne sprawy przełącza do Ciebie, jednym zdaniem streszczając rozmowę. Fotowoltaika i „badania opinii” kończą się na asystencie." to
+        "Unknown numbers don't ring. The AI answers, asks what it's about and only puts important calls through, with a one-sentence summary. Solar panel pitches and “opinion polls” stop at the assistant.",
+    "Numer agenta" to
+        "Agent's number",
+    "Numery ukryte" to
+        "Withheld numbers",
+    "Numery, do których dzwoniłeś" to
+        "Numbers you called",
+    "Od godziny" to
+        "From",
+    "Od razu" to
+        "At once",
+    "Od razu: telefon odrzuca, operator przekierowuje" to
+        "At once: the phone declines, the carrier forwards",
+    "Odśwież" to
+        "Refresh",
+    "Oficjalny" to
+        "Formal",
+    "Otwórz panel platformy" to
+        "Open the platform dashboard",
+    "Platforma" to
+        "Platform",
+    "Platforma agenta" to
+        "Agent platform",
+    "Platforma odrzuciła klucz API" to
+        "The platform rejected the API key",
+    "Platforma ogranicza liczbę zapytań – spróbuj za chwilę" to
+        "The platform is rate limiting — try again shortly",
+    "Po rozmowie" to
+        "After the call",
+    "Podaj swój numer – na niego agent przełączy ważne rozmowy" to
+        "Enter your number — the agent puts important calls through to it",
+    "Pomijaj w roamingu" to
+        "Skip while roaming",
+    "Powiadamiaj o spamie" to
+        "Notify about spam",
+    "Powitanie, zasady i przełączanie" to
+        "Greeting, rules and transfers",
+    "Poza nimi telefon dzwoni normalnie" to
+        "Outside those hours the phone rings as usual",
+    "Połącz" to
+        "Connect",
+    "Połącz platformę" to
+        "Connect a platform",
+    "Połączenie nie dotarło do agenta. Sprawdź przekierowanie u operatora i oddzwoń." to
+        "The call never reached the agent. Check call forwarding with your carrier and call back.",
+    "Przekazanie" to
+        "Handover",
+    "Przekazywanie…" to
+        "Handing over…",
+    "Przekierowanie działa też, gdy sam odrzucisz połączenie albo masz zajęte – wtedy również odbierze agent. Operator może doliczać opłatę za przekierowane połączenia. Jeśli po odrzuceniu dzwoniący słyszy pocztę lub zajęte, wybierz tryb cichy." to
+        "Forwarding also applies when you decline a call yourself or the line is busy — the agent answers then too. Your carrier may charge for forwarded calls. If callers get voicemail or a busy tone after a decline, choose silent mode.",
+    "Przekierowanie u operatora" to
+        "Carrier forwarding",
+    "Przełączone do Ciebie" to
+        "Put through to you",
+    "Przypisz agenta do numeru w panelu platformy" to
+        "Assign an agent to the number in the platform dashboard",
+    "Rozmowa zakończona" to
+        "Call finished",
+    "Rozmowy, transkrypcje i klucz API idą wyłącznie do wybranej platformy i podlegają jej regulaminowi. Klucz jest zaszyfrowany w telefonie. Agent zawsze mówi dzwoniącemu, że jest AI." to
+        "Calls, transcripts and the API key go only to the platform you chose and fall under its terms. The key is encrypted on the phone. The agent always tells callers it is an AI.",
+    "Serwer odpowiada" to
+        "The server responds",
+    "Spam" to
+        "Spam",
+    "Spam zatrzymany: {0}" to
+        "Spam stopped: {0}",
+    "Sposób rozmowy" to
+        "Conversation style",
+    "Sprawdzisz powitanie i głos" to
+        "Check the greeting and voice",
+    "Są niewysłane zmiany" to
+        "There are unsent changes",
+    "Także połączenia bez numeru" to
+        "Calls without a number too",
+    "Telefon dzwoni cicho, możesz odebrać" to
+        "The phone rings silently and you can still answer",
+    "Ten agent nie używa Retell LLM – ustaw go w panelu platformy" to
+        "This agent doesn't use Retell LLM — set it up in the platform dashboard",
+    "Też trafia do asystenta" to
+        "Also goes to the assistant",
+    "Też trafiają do asystenta" to
+        "Also go to the assistant",
+    "Ton" to
+        "Tone",
+    "Trwa rozmowa z agentem" to
+        "Talking to the agent",
+    "Tu pojawią się połączenia odebrane przez asystenta, ze streszczeniem rozmowy." to
+        "Calls answered by the assistant appear here, with a summary of each.",
+    "Twoje imię (agent się nim przedstawi)" to
+        "Your name (the agent uses it when answering)",
+    "Twój numer" to
+        "Your number",
+    "Twój serwer przyjmuje konfigurację przez POST i zwraca rozmowy przez GET – format opisuje README." to
+        "Your server accepts the configuration via POST and returns calls via GET — the README describes the format.",
+    "Tylko w telefonie, bez kopii zapasowej" to
+        "On this phone only, excluded from backups",
+    "Tylko w wybranych godzinach" to
+        "Only during set hours",
+    "Uprzejmy i oficjalny" to
+        "Courteous and formal",
+    "Utwórz agenta w panelu ElevenLabs i przypisz go do numeru Twilio lub SIP. Aplikacja ustawi jego rozmowę i przełączanie." to
+        "Create an agent in the ElevenLabs dashboard and assign it to a Twilio or SIP number. The app sets up its conversation and transfers.",
+    "Utwórz agenta w panelu Retell, przypisz go do numeru i opublikuj. Aplikacja ustawi jego rozmowę i przełączanie." to
+        "Create an agent in the Retell dashboard, assign it to a number and publish it. The app sets up its conversation and transfers.",
+    "W ciągu {0} min dzwoni normalnie" to
+        "Within {0} min it rings as usual",
+    "Ważne" to
+        "Important",
+    "Ważne: {0}" to
+        "Important: {0}",
+    "Wiadomość: {0}" to
+        "Message: {0}",
+    "Wybrany numer" to
+        "Selected number",
+    "Wyłącz przekierowanie" to
+        "Turn off forwarding",
+    "Wyślij ustawienia do agenta" to
+        "Send settings to the agent",
+    "Własne powitanie (opcjonalnie)" to
+        "Custom greeting (optional)",
+    "Własny serwer" to
+        "Own server",
+    "Włącz przekierowanie" to
+        "Turn on forwarding",
+    "Włączony: AI odbiera nieznane numery" to
+        "On: AI answers unknown numbers",
+    "Z ostatnich {0} dni dzwonią normalnie" to
+        "From the last {0} days they ring as usual",
+    "Za granicą telefon dzwoni normalnie – bez opłat za przekierowanie" to
+        "Abroad the phone rings as usual, with no forwarding charges",
+    "Zachowuj transkrypcje" to
+        "Keep transcripts",
+    "Zadzwoń do agenta na próbę" to
+        "Make a test call to the agent",
+    "{0} dni" to
+        "{0} days",
+    "{0} min" to
+        "{0} min",
+    "{0} s" to
+        "{0} s",
 )

@@ -13,6 +13,11 @@ import android.net.Uri
 import android.os.Build
 import com.blacksingularities.opencall.MainActivity
 import com.blacksingularities.opencall.R
+import com.blacksingularities.opencall.ai.AiRecord
+import com.blacksingularities.opencall.ai.AiScreening
+import com.blacksingularities.opencall.ai.AiStatus
+import com.blacksingularities.opencall.ai.AiVerdict
+import com.blacksingularities.opencall.data.PhoneText
 import com.blacksingularities.opencall.i18n.tr
 
 /** Powiadomienia rozmów: dzwoni (pełny ekran), trwa (powrót / rozłącz), nieodebrane i zablokowane. */
@@ -21,6 +26,7 @@ object CallNotifications {
     const val CH_ONGOING = "ongoing_calls"
     const val CH_MISSED = "missed_calls"
     const val CH_BLOCKED = "blocked_calls"
+    const val CH_AI = "ai_assistant"
     const val ID_CALL = 100
     const val ID_MISSED = 101
     const val ID_BLOCKED = 102
@@ -46,6 +52,7 @@ object CallNotifications {
         )
         nm.createNotificationChannel(NotificationChannel(CH_MISSED, tr("Nieodebrane połączenia"), NotificationManager.IMPORTANCE_DEFAULT))
         nm.createNotificationChannel(NotificationChannel(CH_BLOCKED, tr("Zablokowane połączenia"), NotificationManager.IMPORTANCE_LOW))
+        nm.createNotificationChannel(NotificationChannel(CH_AI, tr("Asystent AI"), NotificationManager.IMPORTANCE_HIGH))
     }
 
     private fun flags() = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
@@ -208,5 +215,82 @@ object CallNotifications {
             .setAutoCancel(true)
             .build()
         runCatching { nm.notify(ID_BLOCKED, n) }
+    }
+
+    /** Identyfikator stały dla wpisu: wynik zastępuje powiadomienie „asystent odbiera”. */
+    fun aiNotificationId(id: String): Int = 2000 + (id.hashCode() and 0xFFF)
+
+    private fun aiOpen(context: Context): PendingIntent = PendingIntent.getActivity(
+        context, 30,
+        Intent(context, MainActivity::class.java).setAction(MainActivity.ACTION_SHOW_AI).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        flags(),
+    )
+
+    private fun aiWho(r: AiRecord): String =
+        r.caller ?: r.number.takeIf { it.isNotBlank() }?.let { PhoneText.pretty(it) } ?: tr("Numer prywatny")
+
+    /** Ciche powiadomienie na czas rozmowy agenta. */
+    fun aiLive(context: Context, r: AiRecord) {
+        channels(context)
+        val nm = context.getSystemService(NotificationManager::class.java) ?: return
+        val n = Notification.Builder(context, CH_BLOCKED)
+            .setSmallIcon(R.drawable.ic_stat_call)
+            .setContentTitle(tr("Asystent AI odbiera połączenie"))
+            .setContentText(aiWho(r))
+            .setContentIntent(aiOpen(context))
+            .setAutoCancel(true)
+            .build()
+        runCatching { nm.notify(aiNotificationId(r.id), n) }
+    }
+
+    /** Wynik rozmowy: jedno zdanie streszczenia, „Oddzwoń” i „Zablokuj”. */
+    fun aiResult(context: Context, r: AiRecord, cfg: AiScreening) {
+        channels(context)
+        val nm = context.getSystemService(NotificationManager::class.java) ?: return
+        val id = aiNotificationId(r.id)
+        if (r.status == AiStatus.DONE && r.verdict == AiVerdict.SPAM && !cfg.notifySpam) {
+            nm.cancel(id)
+            return
+        }
+        val who = aiWho(r)
+        val title = when {
+            r.status == AiStatus.MISSED -> tr("Asystent nie odebrał: {0}", who)
+            r.transferred -> tr("Asystent przełączył: {0}", who)
+            r.verdict == AiVerdict.IMPORTANT -> tr("Ważne: {0}", who)
+            r.verdict == AiVerdict.SPAM -> tr("Spam zatrzymany: {0}", who)
+            r.verdict == AiVerdict.MESSAGE -> tr("Wiadomość: {0}", who)
+            else -> tr("Asystent rozmawiał: {0}", who)
+        }
+        val text = when {
+            r.status == AiStatus.MISSED -> tr("Połączenie nie dotarło do agenta. Sprawdź przekierowanie u operatora i oddzwoń.")
+            else -> r.summary ?: tr("Brak streszczenia – szczegóły w historii asystenta")
+        }
+        val quiet = r.verdict == AiVerdict.SPAM || r.transferred
+        val b = Notification.Builder(context, if (quiet) CH_BLOCKED else CH_AI)
+            .setSmallIcon(if (r.status == AiStatus.MISSED) R.drawable.ic_stat_missed else R.drawable.ic_stat_call)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setStyle(Notification.BigTextStyle().bigText(text))
+            .setContentIntent(aiOpen(context))
+            .setAutoCancel(true)
+            .setShowWhen(true)
+        if (r.number.isNotBlank()) {
+            val callBack = PendingIntent.getBroadcast(
+                context, id,
+                Intent(context, CallActionReceiver::class.java).setAction(CallActionReceiver.ACTION_CALL_BACK)
+                    .putExtra(CallActionReceiver.EXTRA_NUMBER, r.number),
+                flags(),
+            )
+            val block = PendingIntent.getBroadcast(
+                context, id + 5000,
+                Intent(context, CallActionReceiver::class.java).setAction(CallActionReceiver.ACTION_AI_BLOCK)
+                    .putExtra(CallActionReceiver.EXTRA_NUMBER, r.number)
+                    .putExtra(CallActionReceiver.EXTRA_NOTIFICATION, id),
+                flags(),
+            )
+            b.addAction(Notification.Action.Builder(null, tr("Oddzwoń"), callBack).build())
+            b.addAction(Notification.Action.Builder(null, tr("Zablokuj"), block).build())
+        }
+        runCatching { nm.notify(id, b.build()) }
     }
 }

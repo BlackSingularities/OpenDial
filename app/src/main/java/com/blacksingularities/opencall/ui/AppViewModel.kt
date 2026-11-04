@@ -19,6 +19,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.blacksingularities.opencall.ai.AgentLine
+import com.blacksingularities.opencall.ai.AgentPlatform
+import com.blacksingularities.opencall.ai.AiLog
+import com.blacksingularities.opencall.ai.AiPrompt
+import com.blacksingularities.opencall.ai.AiProvider
+import com.blacksingularities.opencall.ai.AiRecord
+import com.blacksingularities.opencall.ai.AiRules
+import com.blacksingularities.opencall.ai.AiSync
+import com.blacksingularities.opencall.ai.SecretStore
 import com.blacksingularities.opencall.call.Dialer
 import com.blacksingularities.opencall.data.AppSettings
 import com.blacksingularities.opencall.data.BlockRepo
@@ -52,6 +61,8 @@ sealed interface Route {
     data class Edit(val draft: ContactDraft) : Route
     data object Settings : Route
     data object Blocked : Route
+    data object AiScreening : Route
+    data object AiHistory : Route
     data object Stats : Route
     data object Duplicates : Route
     data object SpeedDial : Route
@@ -159,6 +170,124 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (old.nameOrder != settings.nameOrder || old.groupCalls != settings.groupCalls) reload()
         // Zakładka właśnie zniknęła z paska – nie zostawiamy jej otwartej.
         if (!settings.showFavoritesTab && tab == 0) selectTab(1)
+    }
+
+    // ---- Asystent AI --------------------------------------------------------------------------
+
+    private val secrets by lazy { SecretStore(ctx) }
+    private val aiLog by lazy { AiLog(ctx) }
+
+    var aiKey by mutableStateOf("")
+        private set
+    var aiLines by mutableStateOf<List<AgentLine>>(emptyList())
+        private set
+    var aiBusy by mutableStateOf(false)
+        private set
+    var aiRecords by mutableStateOf<List<AiRecord>>(emptyList())
+        private set
+
+    fun updateAi(t: (com.blacksingularities.opencall.ai.AiScreening) -> com.blacksingularities.opencall.ai.AiScreening) =
+        updateSettings { it.copy(ai = t(it.ai)) }
+
+    /** Klucz i historia ładowane dopiero po wejściu na ekran asystenta. */
+    fun loadAi() {
+        viewModelScope.launch {
+            aiKey = withContext(Dispatchers.IO) { secrets.get(settings.ai.provider.name) }
+            aiRecords = withContext(Dispatchers.IO) { aiLog.load() }
+        }
+    }
+
+    fun setAiKey(value: String) {
+        aiKey = value.trim()
+        val name = settings.ai.provider.name
+        val key = aiKey
+        viewModelScope.launch {
+            val saved = withContext(Dispatchers.IO) { secrets.put(name, key) }
+            if (!saved) toast(tr("Nie udało się bezpiecznie zapisać klucza"))
+        }
+    }
+
+    fun setAiProvider(p: AiProvider) {
+        if (p == settings.ai.provider) return
+        aiLines = emptyList()
+        updateAi { it.copy(provider = p, agentId = "", lineId = "", agentNumber = "", syncedHash = "", model = "", voice = "") }
+        loadAi()
+    }
+
+    private fun aiPlatform() = AgentPlatform.of(settings.ai.provider, aiKey, settings.ai.customUrl)
+
+    /** Test klucza i pobranie numerów z konta. */
+    fun aiConnect() {
+        if (aiBusy) return
+        aiBusy = true
+        viewModelScope.launch {
+            val platform = aiPlatform()
+            val result = withContext(Dispatchers.IO) { runCatching { platform.lines() } }
+            aiBusy = false
+            result.onSuccess { lines ->
+                aiLines = lines
+                aiLog.lastSync = System.currentTimeMillis()
+                when {
+                    settings.ai.provider == AiProvider.CUSTOM -> toast(tr("Serwer odpowiada"))
+                    lines.isEmpty() -> toast(tr("Klucz działa, ale na koncie nie ma numeru – dodaj go w panelu platformy"))
+                    lines.size == 1 -> aiPickLine(lines[0])
+                    else -> toast(tr("Klucz działa – wybierz numer"))
+                }
+            }.onFailure { toast(it.message ?: tr("Brak połączenia")) }
+        }
+    }
+
+    fun aiPickLine(line: AgentLine) {
+        updateAi { it.copy(lineId = line.id, agentNumber = line.number, agentId = line.agentId.ifBlank { it.agentId }) }
+    }
+
+    /** Wysyła powitanie, instrukcję i narzędzia do agenta na platformie. */
+    fun aiSendConfig() {
+        if (aiBusy) return
+        val cfg = settings.ai
+        if (cfg.ownNumber.isBlank()) {
+            toast(tr("Podaj swój numer – na niego agent przełączy ważne rozmowy"))
+            return
+        }
+        aiBusy = true
+        viewModelScope.launch {
+            val platform = aiPlatform()
+            val result = withContext(Dispatchers.IO) { runCatching { platform.sync(cfg) } }
+            aiBusy = false
+            result.onSuccess { id ->
+                val saved = cfg.copy(agentId = id)
+                updateAi { it.copy(agentId = id, syncedHash = AiPrompt.fingerprint(saved)) }
+                toast(tr("Agent zaktualizowany"))
+            }.onFailure { toast(it.message ?: tr("Brak połączenia")) }
+        }
+    }
+
+    /** Kod MMI idzie do operatora jak połączenie, a odpowiedź pokazuje system. */
+    fun aiForwarding(on: Boolean) {
+        val cfg = settings.ai
+        val code = if (on) AiRules.enableCode(cfg) else AiRules.disableCode(cfg)
+        if (Dialer.call(ctx, code, settings.defaultSim)) {
+            updateAi { it.copy(forwardingOn = on) }
+        } else {
+            toast(tr("Brak uprawnienia do połączeń"))
+        }
+    }
+
+    fun aiRefresh() {
+        if (aiBusy) return
+        aiBusy = true
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { runCatching { AiSync.run(ctx) } }
+            aiRecords = withContext(Dispatchers.IO) { aiLog.load() }
+            aiBusy = false
+        }
+    }
+
+    fun aiDelete(id: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { aiLog.update { list -> list.filterNot { it.id == id } } }
+            aiRecords = withContext(Dispatchers.IO) { aiLog.load() }
+        }
     }
 
     fun selectTab(i: Int) {

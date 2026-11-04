@@ -106,6 +106,10 @@ class MainActivity : ComponentActivity() {
                 vm.stack.clear()
                 vm.push(Route.Blocked)
             }
+            ACTION_SHOW_AI -> {
+                vm.stack.clear()
+                vm.push(Route.AiHistory)
+            }
             ACTION_ADD_CALL -> {
                 vm.stack.clear()
                 vm.addingCall = true
@@ -130,6 +134,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_SHOW_RECENTS = "com.blacksingularities.opencall.SHOW_RECENTS"
         const val ACTION_SHOW_BLOCKED = "com.blacksingularities.opencall.SHOW_BLOCKED"
+        const val ACTION_SHOW_AI = "com.blacksingularities.opencall.SHOW_AI"
         const val ACTION_ADD_CALL = "com.blacksingularities.opencall.ADD_CALL"
     }
 }

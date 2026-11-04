@@ -1,5 +1,14 @@
 # Zmiany
 
+## 0.4.0
+
+- **Tryb „Kto dzwoni naprawdę”.** Nieznany numer nie dzwoni: odbiera asystent AI, pyta, kto dzwoni i w jakiej sprawie, a ważne rozmowy przełącza do Ciebie z jednym zdaniem streszczenia. Fotowoltaika i „badania opinii” kończą się na asystencie. Tryb jest domyślnie wyłączony.
+- Działa z **Vapi, Retell AI, ElevenLabs Agents** albo własnym serwerem, na Twoim koncie i Twoim kluczu API. Model AI i głos wybierasz w aplikacji (OpenAI, Claude, Gemini, Groq i inne, zależnie od platformy).
+- Rozmowę prowadzi agent w chmurze, bo Android nie daje zwykłej aplikacji dostępu do dźwięku połączenia. Telefon odrzuca nieznany numer, a operator przekierowuje go na numer agenta; do wyboru jest też tryb cichy, w którym telefon dzwoni bez dźwięku i można odebrać.
+- Pełna konfiguracja: ton, język, powitanie, co jest ważne, czego nie chcesz, własne wskazówki, limit czasu, godziny działania, numery ukryte, pomijanie w roamingu. Drugi telefon z rzędu i oddzwonienia na numery, do których dzwoniłeś, dzwonią normalnie.
+- Po rozmowie: powiadomienie ze streszczeniem, „Oddzwoń” i „Zablokuj”, historia asystenta z transkrypcjami, opcjonalne blokowanie spamu. Gdy połączenie nie dotrze do agenta, dostajesz o tym powiadomienie.
+- Klucz API jest szyfrowany w telefonie, a klucz i treści rozmów nie trafiają do kopii zapasowej. Agent zawsze mówi dzwoniącemu, że jest AI.
+
 ## 0.3.2
 
 - Czerwona plakietka aktualizacji na przycisku ustawień nie jest już obcinana.
