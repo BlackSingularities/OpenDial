@@ -207,7 +207,7 @@ fun AiScreeningScreen(vm: AppViewModel) {
                     DarkField(a.customUrl, { v -> set { it.copy(customUrl = v.trim()) } }, tr("Adres serwera (https://…)"), keyboard = KeyboardType.Uri)
                 }
                 PillButton(if (vm.aiBusy) tr("Łączenie…") else tr("Połącz"), enabled = !vm.aiBusy && key.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
-                    vm.setAiKey(key)
+                    vm.saveAiKey(key)
                     vm.aiConnect()
                 }
             }

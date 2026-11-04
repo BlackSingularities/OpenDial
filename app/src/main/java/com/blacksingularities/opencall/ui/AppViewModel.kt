@@ -197,7 +197,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun setAiKey(value: String) {
+    fun saveAiKey(value: String) {
         aiKey = value.trim()
         val name = settings.ai.provider.name
         val key = aiKey
