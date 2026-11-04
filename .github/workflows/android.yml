@@ -91,8 +91,8 @@ jobs:
           path: dist
           merge-multiple: true
 
-      # Opis wydania to sekcja z CHANGELOG.md dla danej wersji; aplikacja pokazuje go
-      # w powiadomieniu o aktualizacji, ucinając wszystko po „---”.
+      # Opis wydania to sekcja z CHANGELOG.md dla danej wersji; widać go tylko na GitHubie,
+      # aplikacja nie pokazuje listy zmian przy aktualizacji.
       - name: Publikacja wydania
         env:
           GH_TOKEN: ${{ github.token }}

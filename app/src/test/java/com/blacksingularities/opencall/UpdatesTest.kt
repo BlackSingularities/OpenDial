@@ -23,15 +23,12 @@ class UpdatesTest {
     """.trimIndent()
 
     @Test
-    fun parsesTagAssetAndNotes() {
+    fun parsesTagAndAsset() {
         val info = parseRelease(release)
         assertEquals("0.2.0", info.version)
         assertEquals("https://example.com/app.apk", info.assetUrl)
         assertEquals(7_340_032L, info.sizeBytes)
         assertEquals("https://github.com/BlackSingularities/OpenDial/releases/tag/v0.2.0", info.pageUrl)
-        // Wszystko po „---” to stopka generowana przez CI – nie trafia do powiadomienia.
-        assertFalse(info.notes.contains("Stopka"))
-        assertTrue(info.notes.startsWith("Nowości"))
     }
 
     @Test

@@ -10,7 +10,6 @@ const val UPDATE_API = "https://redzikowski.com/api/github/repos/$UPDATE_REPO/re
 
 data class ReleaseInfo(
     val version: String,
-    val notes: String,
     val assetUrl: String,
     val sizeBytes: Long,
     val pageUrl: String,
@@ -49,7 +48,6 @@ fun parseRelease(json: String, assetSuffix: String = ".apk"): ReleaseInfo {
     if (url.isEmpty()) error(tr("Wydanie nie zawiera pliku {0}", assetSuffix.removePrefix(".").uppercase()))
     return ReleaseInfo(
         version = o.optString("tag_name").removePrefix("v"),
-        notes = o.optString("body").substringBefore("\n---").trim(),
         assetUrl = url,
         sizeBytes = size,
         pageUrl = o.optString("html_url"),

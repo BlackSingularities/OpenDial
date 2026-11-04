@@ -93,6 +93,7 @@ private enum class RecentFilter { ALL, MISSED, INCOMING, OUTGOING, BLOCKED }
 @Composable
 fun RecentsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions: () -> Unit) {
     var filter by rememberSaveable { mutableStateOf(RecentFilter.ALL) }
+    var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var expanded by remember { mutableStateOf<String?>(null) }
     var menu by remember { mutableStateOf<CallGroup?>(null) }
@@ -102,7 +103,8 @@ fun RecentsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions
         val q = PhoneText.fold(query.trim())
         vm.groups.filter { g ->
             val k = g.first.kind
-            val passFilter = when (filter) {
+            // Filtry są zakryte przez pole wyszukiwania, więc szukamy w całej historii.
+            val passFilter = q.isNotEmpty() || when (filter) {
                 RecentFilter.ALL -> true
                 RecentFilter.MISSED -> k == CallKind.MISSED || k == CallKind.REJECTED
                 RecentFilter.INCOMING -> k == CallKind.INCOMING
@@ -126,17 +128,25 @@ fun RecentsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions
     val typing = vm.keypadOpen && vm.dialed.isNotEmpty()
 
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars)) {
-        SearchHeader(vm, query, { query = it }, tr("Szukaj w historii")) {
-            RoundIcon(Icons.Rounded.DeleteSweep, tr("Wyczyść historię"), enabled = vm.calls.isNotEmpty()) { confirmClear = true }
-        }
-        if (!typing) Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
-            ChipRow {
-                TabChip(Icons.Rounded.History, tr("Wszystkie"), filter == RecentFilter.ALL, compact = true) { filter = RecentFilter.ALL }
-                TabChip(Icons.AutoMirrored.Rounded.CallMissed, tr("Nieodebrane"), filter == RecentFilter.MISSED, compact = true) { filter = RecentFilter.MISSED }
-                TabChip(Icons.AutoMirrored.Rounded.CallReceived, tr("Przychodzące"), filter == RecentFilter.INCOMING, compact = true) { filter = RecentFilter.INCOMING }
-                TabChip(Icons.AutoMirrored.Rounded.CallMade, tr("Wychodzące"), filter == RecentFilter.OUTGOING, compact = true) { filter = RecentFilter.OUTGOING }
-                TabChip(Icons.Rounded.Block, tr("Zablokowane"), filter == RecentFilter.BLOCKED, compact = true) { filter = RecentFilter.BLOCKED }
-            }
+        SearchHeader(
+            vm, searching,
+            onSearching = {
+                searching = it
+                // Pole wyszukiwania ma własną klawiaturę – panel wybierania by ją dublował.
+                if (it) vm.keypadOpen = false
+            },
+            query, { query = it }, tr("Szukaj w historii"),
+            leading = {
+                if (!typing) ChipRow {
+                    TabChip(Icons.Rounded.History, tr("Wszystkie"), filter == RecentFilter.ALL, compact = true) { filter = RecentFilter.ALL }
+                    TabChip(Icons.AutoMirrored.Rounded.CallMissed, tr("Nieodebrane"), filter == RecentFilter.MISSED, compact = true) { filter = RecentFilter.MISSED }
+                    TabChip(Icons.AutoMirrored.Rounded.CallReceived, tr("Przychodzące"), filter == RecentFilter.INCOMING, compact = true) { filter = RecentFilter.INCOMING }
+                    TabChip(Icons.AutoMirrored.Rounded.CallMade, tr("Wychodzące"), filter == RecentFilter.OUTGOING, compact = true) { filter = RecentFilter.OUTGOING }
+                    TabChip(Icons.Rounded.Block, tr("Zablokowane"), filter == RecentFilter.BLOCKED, compact = true) { filter = RecentFilter.BLOCKED }
+                }
+            },
+        ) {
+            if (!searching) RoundIcon(Icons.Rounded.DeleteSweep, tr("Wyczyść historię"), enabled = vm.calls.isNotEmpty()) { confirmClear = true }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
         if (typing) {
@@ -181,7 +191,7 @@ fun RecentsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions
             }
         }
             androidx.compose.animation.AnimatedVisibility(
-                visible = !vm.keypadOpen,
+                visible = !vm.keypadOpen && !searching,
                 enter = scaleIn() + fadeIn(),
                 exit = scaleOut() + fadeOut(),
                 modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),

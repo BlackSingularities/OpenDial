@@ -91,6 +91,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun ContactsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions: () -> Unit) {
+    var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var selection by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -146,8 +147,8 @@ fun ContactsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermission
                 RoundIcon(Icons.Rounded.Delete, tr("Usuń zaznaczone"), tint = Palette.Record) { confirmDelete = true }
             }
         } else {
-            SearchHeader(vm, query, { query = it }, tr("Szukaj wśród {0} kontaktów", vm.contacts.size)) {
-                RoundIcon(Icons.Rounded.PersonAdd, tr("Nowy kontakt"), enabled = vm.hasContacts) { vm.newContact() }
+            SearchHeader(vm, searching, { searching = it }, query, { query = it }, tr("Szukaj wśród {0} kontaktów", vm.contacts.size)) {
+                if (!searching) RoundIcon(Icons.Rounded.PersonAdd, tr("Nowy kontakt"), enabled = vm.hasContacts) { vm.newContact() }
             }
         }
         if (!vm.hasContacts) {

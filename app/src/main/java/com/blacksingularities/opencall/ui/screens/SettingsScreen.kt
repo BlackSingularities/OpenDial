@@ -210,7 +210,7 @@ fun SettingsScreen(vm: AppViewModel, onRequestRole: () -> Unit) {
                     is UpdateState.Failed -> u.message
                     is UpdateState.Downloading -> tr("Pobieranie… {0}%", (u.progress * 100).toInt())
                     is UpdateState.Installing -> tr("Instalowanie…")
-                    is UpdateState.Available -> u.info.notes.lineSequence().firstOrNull { it.isNotBlank() } ?: tr("Nowa wersja na GitHubie")
+                    is UpdateState.Available -> tr("Nowa wersja na GitHubie")
                     else -> tr("Wersja {0}", UpdateManager.currentVersion)
                 },
             ) { vm.updateNow() }

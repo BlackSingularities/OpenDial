@@ -1,6 +1,11 @@
 package com.blacksingularities.opencall.ui.screens
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.automirrored.rounded.PhoneForwarded
@@ -23,14 +29,22 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import com.blacksingularities.opencall.i18n.tr
 import com.blacksingularities.opencall.ui.AppViewModel
@@ -39,6 +53,7 @@ import com.blacksingularities.opencall.ui.UpdateBanner
 import com.blacksingularities.opencall.ui.components.PillButton
 import com.blacksingularities.opencall.ui.components.RoundIcon
 import com.blacksingularities.opencall.ui.theme.Palette
+import com.blacksingularities.opencall.ui.theme.glass
 import com.blacksingularities.opencall.ui.theme.reactive
 
 /**
@@ -60,20 +75,35 @@ fun TabHeader(vm: AppViewModel, actions: @Composable RowScope.() -> Unit = {}) {
 }
 
 /**
- * Nagłówek zakładki bez tytułu: pole wyszukiwania zajmuje całą szerokość obok akcji i ustawień.
- * Oszczędza wysokość ekranu tam, gdzie nazwa zakładki i tak jest widoczna na dolnym pasku.
+ * Nagłówek zakładki w stylu OpenSMS: po lewej [leading] (np. filtry), a obok lupa, która po dotknięciu
+ * płynnie rozciąga się w lewo w pole wyszukiwania i zakrywa [leading]. Stan trzyma ekran, bo od
+ * [query] zależy jego lista; do czasu wpisania czegokolwiek lista się nie zmienia.
  */
 @Composable
 fun SearchHeader(
     vm: AppViewModel,
+    searching: Boolean,
+    onSearching: (Boolean) -> Unit,
     query: String,
     onQuery: (String) -> Unit,
     hint: String,
+    leading: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
 ) {
+    val close = {
+        onSearching(false)
+        onQuery("")
+    }
+    BackHandler(enabled = searching, onBack = close)
+    val p by animateFloatAsState(if (searching) 1f else 0f, tween(280, easing = FastOutSlowInEasing), label = "searchGrow")
     Column(Modifier.fillMaxWidth().padding(start = 14.dp, end = 12.dp, top = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            SearchField(query, onQuery, hint, Modifier.weight(1f))
+            BoxWithConstraints(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                if (p < 1f) {
+                    Box(Modifier.fillMaxWidth().padding(end = 50.dp).graphicsLayer { alpha = 1f - p }) { leading() }
+                }
+                SearchPill(searching, p, query, onQuery, hint, { onSearching(true) }, close, Modifier.width(lerp(44.dp, maxWidth, p)))
+            }
             actions()
             RoundIcon(Icons.Rounded.Settings, tr("Ustawienia"), badge = if (vm.updatePending) "1" else null) { vm.push(Route.Settings) }
         }
@@ -81,37 +111,48 @@ fun SearchHeader(
     }
 }
 
-/** Pole wyszukiwania w kształcie pigułki. */
+/** Lupa albo – w trakcie szukania – pole ze strzałką wstecz i czyszczeniem. */
 @Composable
-fun SearchField(value: String, onChange: (String) -> Unit, hint: String, modifier: Modifier = Modifier) {
+private fun SearchPill(
+    searching: Boolean,
+    p: Float,
+    value: String,
+    onChange: (String) -> Unit,
+    hint: String,
+    onOpen: () -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(searching) { if (searching) runCatching { focus.requestFocus() } }
     Row(
-        modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(50))
-            .background(Color.White.copy(alpha = 0.08f))
-            .padding(horizontal = 14.dp, vertical = 11.dp),
+        modifier.height(44.dp).glass(RoundedCornerShape(50)).clip(RoundedCornerShape(50)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Rounded.Search, null, tint = Palette.TextDim, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(10.dp))
-        Box(Modifier.weight(1f)) {
-            if (value.isEmpty()) Text(hint, color = Palette.TextFaint, fontSize = 15.sp)
-            BasicTextField(
-                value = value,
-                onValueChange = onChange,
-                singleLine = true,
-                textStyle = TextStyle(color = Color.White, fontSize = 15.sp),
-                cursorBrush = SolidColor(Color.White),
-                modifier = Modifier.fillMaxWidth(),
-            )
+        val label = if (searching) tr("Zamknij wyszukiwanie") else tr("Szukaj")
+        Box(Modifier.size(44.dp).reactive(label, onClick = if (searching) onClose else onOpen), contentAlignment = Alignment.Center) {
+            Icon(if (searching) Icons.AutoMirrored.Rounded.ArrowBack else Icons.Rounded.Search, null, tint = Color.White, modifier = Modifier.size(22.dp))
         }
-        if (value.isNotEmpty()) {
-            Icon(
-                Icons.Rounded.Close,
-                tr("Wyczyść"),
-                tint = Palette.TextDim,
-                modifier = Modifier.size(20.dp).reactive(tr("Wyczyść")) { onChange("") },
-            )
+        if (searching || p > 0f) {
+            Box(Modifier.weight(1f).graphicsLayer { alpha = p }) {
+                if (value.isEmpty()) Text(hint, color = Palette.TextFaint, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                BasicTextField(
+                    value = value,
+                    onValueChange = onChange,
+                    singleLine = true,
+                    enabled = searching,
+                    textStyle = TextStyle(color = Color.White, fontSize = 15.sp),
+                    cursorBrush = SolidColor(Color.White),
+                    modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                )
+            }
+            if (value.isNotEmpty()) {
+                Box(Modifier.size(44.dp).reactive(tr("Wyczyść")) { onChange("") }, contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.Close, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                }
+            } else {
+                Spacer(Modifier.width(16.dp))
+            }
         }
     }
 }

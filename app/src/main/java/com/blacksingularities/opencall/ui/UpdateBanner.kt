@@ -23,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.blacksingularities.opencall.i18n.tr
@@ -48,7 +47,6 @@ fun UpdateBanner(vm: AppViewModel, modifier: Modifier = Modifier) {
             is UpdateState.Installing -> tr("Instalowanie {0}…", u.info.version) to null
             else -> "" to null
         }
-        val notes = (u as? UpdateState.Available)?.info?.notes ?: (u as? UpdateState.Ready)?.info?.notes
         Column(
             Modifier
                 .fillMaxWidth()
@@ -95,9 +93,6 @@ fun UpdateBanner(vm: AppViewModel, modifier: Modifier = Modifier) {
                     trackColor = Color.White.copy(alpha = 0.12f),
                     modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                 )
-            }
-            if (!notes.isNullOrBlank()) {
-                Text(notes, color = Palette.TextDim, fontSize = 12.sp, lineHeight = 16.sp, maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp, start = 34.dp))
             }
         }
     }

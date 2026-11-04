@@ -1,5 +1,11 @@
 # Zmiany
 
+## 0.4.1
+
+- Filtry historii (wszystkie, nieodebrane i inne) są teraz w górnym pasku, bez dodatkowego rzędu pod nim, jak w OpenSMS.
+- Wyszukiwanie to przycisk z lupą: rozwija się po dotknięciu, a lista zmienia się dopiero, gdy coś wpiszesz. Tak samo w kontaktach.
+- Powiadomienie o aktualizacji nie pokazuje już listy zmian z GitHuba.
+
 ## 0.4.0
 
 - **Tryb „Kto dzwoni naprawdę”.** Nieznany numer nie dzwoni: odbiera asystent AI, pyta, kto dzwoni i w jakiej sprawie, a ważne rozmowy przełącza do Ciebie z jednym zdaniem streszczenia. Fotowoltaika i „badania opinii” kończą się na asystencie. Tryb jest domyślnie wyłączony.
