@@ -33,6 +33,7 @@ import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Sensors
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SimCard
+import androidx.compose.material.icons.rounded.SmartToy
 import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Star
@@ -106,6 +107,15 @@ fun SettingsScreen(vm: AppViewModel, onRequestRole: () -> Unit) {
             ActionRow(Icons.Rounded.PhoneInTalk, tr("Ustawienia połączeń operatora"), tr("Przekierowania, połączenia oczekujące, ID dzwoniącego")) {
                 vm.openIntent(Intent(android.telecom.TelecomManager.ACTION_SHOW_CALL_SETTINGS))
             }
+        }
+
+        SectionHeader(Icons.Rounded.SmartToy, tr("Asystent AI"))
+        Group(null) {
+            ActionRow(
+                Icons.Rounded.SmartToy,
+                tr("Kto dzwoni naprawdę"),
+                if (s.ai.ready) tr("Włączony: AI odbiera nieznane numery") else tr("AI odbiera nieznane numery i pyta o cel"),
+            ) { vm.push(Route.AiScreening) }
         }
 
         SectionHeader(Icons.Rounded.PhoneInTalk, tr("W trakcie rozmowy"))
@@ -230,7 +240,7 @@ fun SettingsScreen(vm: AppViewModel, onRequestRole: () -> Unit) {
         Column(Modifier.padding(horizontal = 6.dp)) {
             Text("OpenDial ${BuildConfig.VERSION_NAME}", color = Palette.TextDim, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
-            Text(tr("Bez reklam, bez śledzenia, bez kont. Dane zostają w telefonie – aplikacja łączy się z internetem tylko po aktualizacje."), color = Palette.TextDim, fontSize = 11.sp, lineHeight = 15.sp)
+            Text(tr("Bez reklam, bez śledzenia, bez kont. Dane zostają w telefonie – aplikacja łączy się z internetem tylko po aktualizacje i z platformą asystenta AI, jeśli go włączysz."), color = Palette.TextDim, fontSize = 11.sp, lineHeight = 15.sp)
         }
         Spacer(Modifier.height(16.dp))
     }

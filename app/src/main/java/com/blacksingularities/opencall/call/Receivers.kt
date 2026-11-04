@@ -1,9 +1,11 @@
 package com.blacksingularities.opencall.call
 
+import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.telecom.TelecomManager
+import com.blacksingularities.opencall.data.BlockRepo
 import com.blacksingularities.opencall.data.CallLogRepo
 import com.blacksingularities.opencall.data.ContactsRepo
 import com.blacksingularities.opencall.data.SettingsStore
@@ -18,6 +20,15 @@ class CallActionReceiver : BroadcastReceiver() {
                 CallNotifications.cancelMissed(context)
                 val number = intent.getStringExtra(EXTRA_NUMBER) ?: return
                 Dialer.call(context, number, SettingsStore(context).load().defaultSim)
+            }
+            ACTION_AI_BLOCK -> {
+                val number = intent.getStringExtra(EXTRA_NUMBER) ?: return
+                context.getSystemService(NotificationManager::class.java)?.cancel(intent.getIntExtra(EXTRA_NOTIFICATION, 0))
+                val pending = goAsync()
+                Thread {
+                    runCatching { BlockRepo(context).block(number) }
+                    pending.finish()
+                }.start()
             }
             ACTION_MISSED_SEEN -> {
                 val pending = goAsync()
@@ -34,7 +45,9 @@ class CallActionReceiver : BroadcastReceiver() {
         const val ACTION_HANGUP = "com.blacksingularities.opencall.HANGUP"
         const val ACTION_CALL_BACK = "com.blacksingularities.opencall.CALL_BACK"
         const val ACTION_MISSED_SEEN = "com.blacksingularities.opencall.MISSED_SEEN"
+        const val ACTION_AI_BLOCK = "com.blacksingularities.opencall.AI_BLOCK"
         const val EXTRA_NUMBER = "number"
+        const val EXTRA_NOTIFICATION = "notification"
     }
 }
 

@@ -1,6 +1,7 @@
 package com.blacksingularities.opencall.data
 
 import android.content.Context
+import com.blacksingularities.opencall.ai.AiScreening
 import com.blacksingularities.opencall.i18n.AppLanguage
 import org.json.JSONArray
 import org.json.JSONObject
@@ -50,6 +51,8 @@ data class AppSettings(
     val blockRules: List<String> = emptyList(),
     val logBlocked: Boolean = true,
     val notifyBlocked: Boolean = false,
+    // Asystent AI odbierający nieznane numery
+    val ai: AiScreening = AiScreening(),
     // Szybkie wybieranie: cyfra 2–9 → numer
     val speedDial: Map<Int, String> = emptyMap(),
     val quickReplies: List<String> = DEFAULT_REPLIES,
@@ -109,6 +112,7 @@ class SettingsStore(context: Context) {
             put("blockRules", JSONArray(s.blockRules))
             put("logBlocked", s.logBlocked)
             put("notifyBlocked", s.notifyBlocked)
+            put("ai", AiScreening.encode(s.ai))
             put("speedDial", JSONObject().apply { s.speedDial.forEach { (k, v) -> put(k.toString(), v) } })
             put("quickReplies", JSONArray(s.quickReplies))
             put("defaultSim", s.defaultSim ?: "")
@@ -157,6 +161,7 @@ class SettingsStore(context: Context) {
                 blockRules = list("blockRules", d.blockRules),
                 logBlocked = b("logBlocked", d.logBlocked),
                 notifyBlocked = b("notifyBlocked", d.notifyBlocked),
+                ai = AiScreening.decode(o.optJSONObject("ai")),
                 speedDial = speed,
                 quickReplies = list("quickReplies", d.quickReplies).ifEmpty { d.quickReplies },
                 defaultSim = o.optString("defaultSim", "").ifBlank { null },

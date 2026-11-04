@@ -9,8 +9,12 @@ import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.DisconnectCause
 import android.telecom.VideoProfile
+import com.blacksingularities.opencall.ai.AiLog
+import com.blacksingularities.opencall.ai.AiMatch
 import com.blacksingularities.opencall.data.ContactsRepo
+import com.blacksingularities.opencall.data.PhoneText
 import com.blacksingularities.opencall.data.SettingsStore
+import com.blacksingularities.opencall.i18n.tr
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -61,6 +65,10 @@ object CallManager {
     private val wasActive = HashSet<Call>()
     private var sims: List<com.blacksingularities.opencall.data.SimAccount> = emptyList()
 
+    /** Numer agenta AI i to, kogo właśnie przełącza – połączenie od niego nie jest „nieznanym numerem”. */
+    private var agentNumber = ""
+    private var agentCaller: String? = null
+
     var service: CallService? = null
         internal set
     private var appContext: Context? = null
@@ -81,7 +89,7 @@ object CallManager {
 
     private val callback = object : Call.Callback() {
         override fun onStateChanged(call: Call, state: Int) {
-            if (state == Call.STATE_ACTIVE && wasActive.add(call)) onConnected()
+            if (state == Call.STATE_ACTIVE && wasActive.add(call)) onConnected(call)
             if (state == Call.STATE_DISCONNECTED) onDisconnected(call)
             changed()
         }
@@ -100,6 +108,7 @@ object CallManager {
         attach(context)
         if (calls.contains(call)) return
         if (calls.isEmpty()) sims = Dialer.sims(context)
+        readAgent(context, numberOf(call))
         calls.add(call)
         call.registerCallback(callback)
         resolveCaller(context, numberOf(call))
@@ -125,6 +134,16 @@ object CallManager {
         appContext?.let { CallNotifications.update(it) }
     }
 
+    private fun readAgent(context: Context, number: String) {
+        val ai = SettingsStore(context).load().ai
+        agentNumber = if (ai.enabled) ai.agentNumber else ""
+        if (!isAgent(number)) return
+        val live = AiLog(context).load().firstOrNull { it.open }
+        agentCaller = live?.caller ?: live?.number?.takeIf { it.isNotBlank() }?.let { PhoneText.pretty(it) }
+    }
+
+    private fun isAgent(number: String) = agentNumber.isNotBlank() && PhoneText.sameNumber(number, agentNumber)
+
     private fun resolveCaller(context: Context, number: String) {
         if (number.isBlank() || callers.containsKey(number)) return
         scope.launch(Dispatchers.IO) {
@@ -147,12 +166,13 @@ object CallManager {
         // Nazwa z sieci (CNAP) albo z konferencji, gdy numer nie jest w kontaktach.
         val netName = d.callerDisplayName?.takeIf { it.isNotBlank() } ?: d.contactDisplayName?.takeIf { it.isNotBlank() }
         val account = sims.takeIf { it.size > 1 }?.firstOrNull { it.id == d.accountHandle?.id }?.label
+        val viaAgent = isAgent(number)
         return CallView(
             call = call,
             number = number,
-            name = who?.name ?: netName,
+            name = if (viaAgent) tr("Asystent AI") else who?.name ?: netName,
             photoUri = who?.photoUri,
-            label = who?.label,
+            label = if (viaAgent) agentCaller else who?.label,
             contactId = who?.contactId,
             state = state,
             connectTime = d.connectTimeMillis,
@@ -268,8 +288,13 @@ object CallManager {
         }
     }
 
-    private fun onConnected() {
+    private fun onConnected(call: Call) {
         val ctx = appContext ?: return
+        // Odebrane osobiście przy „cichym” przekazaniu – agent nie dostanie tego połączenia.
+        val number = numberOf(call)
+        if (call.details.callDirection == Call.Details.DIRECTION_INCOMING && number.isNotBlank()) {
+            scope.launch(Dispatchers.IO) { runCatching { AiLog(ctx).update { AiMatch.withoutPending(it, number) } } }
+        }
         if (SettingsStore(ctx).load().vibrateOnConnect) vibrate(ctx, 60)
     }
 

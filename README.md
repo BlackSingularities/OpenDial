@@ -74,17 +74,51 @@ Liczba połączeń, łączny i średni czas rozmów, najdłuższa rozmowa, najcz
 - Własna ciemna paleta (Material 3), ikona adaptacyjna i monochromatyczna (motyw ikon w Androidzie 13+).
 - Zakładki bez wielkich tytułów: w nagłówku „Ostatnich” i „Kontaktów” stoi pole wyszukiwania, więc listy zaczynają się wyżej.
 
+### Asystent AI – „Kto dzwoni naprawdę”
+Nieznany numer nie dzwoni. Odbiera AI, pyta, kto dzwoni i po co, a ważne rozmowy przełącza do Ciebie z jednym zdaniem streszczenia. Tryb jest domyślnie wyłączony (Ustawienia → Asystent AI).
+
+**Jak to działa.** Android nie daje zwykłej aplikacji dostępu do dźwięku rozmowy GSM: przechwytywanie wymaga uprawnień aplikacji systemowych. Dlatego rozmawia agent głosowy w chmurze, na Twoim koncie:
+
+1. Filtr połączeń rozpoznaje numer spoza kontaktów i odrzuca go (albo wycisza w trybie cichym).
+2. Operator przekierowuje połączenie na numer agenta (`**67*numer#` przy „zajętym”, `**61*numer**czas#` przy braku odpowiedzi).
+3. Agent rozmawia według Twoich zasad: przełącza ważne sprawy, kończy spam, od reszty przyjmuje wiadomość.
+4. Przełączone połączenie przychodzi z numeru agenta; aplikacja przepuszcza je i pokazuje jako „Asystent AI”. Agent mówi Ci, kto dzwoni i po co, zanim połączy rozmówcę.
+5. Po rozmowie aplikacja pobiera streszczenie i pokazuje powiadomienie z „Oddzwoń” i „Zablokuj”.
+
+| Platforma | Co robi aplikacja | Co trzeba przygotować |
+|---|---|---|
+| **Vapi** | Tworzy agenta, przypisuje go do numeru, ustawia rozmowę, przełączanie i analizę. | Klucz API i numer. Streszczenie głosem przy przełączeniu wymaga numeru Twilio. |
+| **Retell AI** | Ustawia rozmowę, przełączanie i analizę istniejącego agenta. | Klucz API, agent z Retell LLM przypisany do numeru i opublikowany. |
+| **ElevenLabs Agents** | Ustawia rozmowę, przełączanie i analizę istniejącego agenta. | Klucz API, agent przypisany do numeru Twilio lub SIP. |
+| **Własny serwer** | Wysyła konfigurację i odczytuje rozmowy. | Serwer HTTPS w formacie opisanym niżej. |
+
+Platforma nalicza opłaty za minuty, a operator może doliczyć przekierowanie. Numer agenta najlepiej mieć w tym samym kraju.
+
+**Zabezpieczenia.** Gdy czegoś brakuje, telefon po prostu dzwoni: bez dostępu do kontaktów, w roamingu i poza ustawionymi godzinami nic nie jest odrzucane. Drugi telefon z tego samego numeru w ciągu kilku minut i numery, do których dzwoniłeś, dzwonią normalnie. Jeśli połączenie nie dotrze do agenta, dostajesz powiadomienie. Agent traktuje słowa dzwoniącego jako informację, a nie polecenia, nie zdradza Twoich danych i niczego w Twoim imieniu nie akceptuje.
+
+**Własny serwer.** Żądania niosą nagłówek `Authorization: Bearer <klucz>`. `POST <adres>` przyjmuje konfigurację: `systemPrompt`, `firstMessage`, `transferNumber`, `language`, `maxSeconds`, `summaryInstruction`. `GET <adres>?since=<ms>` zwraca:
+
+```json
+{"calls": [{"id": "1", "number": "+48500600700", "startedAt": 1793800000000, "endedAt": 1793800060000,
+  "ended": true, "summary": "Kurier z paczką.", "verdict": "important", "caller": "DPD",
+  "transcript": "…", "transferred": true}]}
+```
+
+`verdict` to `important`, `message` albo `spam`.
+
 ### Aktualizacje
 Aplikacja sprawdza **GitHub Releases** przy uruchomieniu (najwyżej raz na 6 godzin), pokazuje opis wydania, pobiera APK z pokazanym postępem i instaluje je – bez sklepu i bez konta. Sprawdzanie można wyłączyć i uruchamiać ręcznie w ustawieniach.
 
 ## Prywatność
 
-Aplikacja nie ma reklam, analityki ani kont. Kontakty i historia połączeń nie opuszczają telefonu; jedyne połączenie z internetem to zapytanie do GitHuba o najnowsze wydanie i pobranie APK. Eksporty (vCard, CSV) zapisujesz sam, w wybranym miejscu.
+Aplikacja nie ma reklam, analityki ani kont. Kontakty i historia połączeń nie opuszczają telefonu; z internetem łączy się po najnowsze wydanie i APK z GitHuba, a jeśli włączysz asystenta AI, także z wybraną platformą. Wtedy rozmowy z nieznanymi numerami, ich transkrypcje i Twój numer trafiają na Twoje konto u tej platformy. Klucz API jest szyfrowany w Android Keystore, a klucz i historia asystenta nie wchodzą do kopii zapasowej. Eksporty (vCard, CSV) zapisujesz sam, w wybranym miejscu.
 
 ## Architektura
 
 ```
 app/src/main/java/com/blacksingularities/opencall/
+  ai/          AiConfig, AiPrompt, AiPayloads, AiModels (czysty Kotlin), AgentPlatform, AiSync,
+               AiLog, SecretStore – asystent AI i platformy agentów głosowych
   call/        CallService (InCallService), CallManager, CallActivity, ScreeningService,
                CallNotifications, Dialer, Receivers – telefonia i powiadomienia
   data/        ContactsRepo, CallLogRepo, BlockRepo, Settings, VCard, PhoneText, Models
@@ -94,7 +128,7 @@ app/src/main/java/com/blacksingularities/opencall/
   update/      Updates (GitHub API, porównanie wersji), UpdateManager (pobieranie, instalacja)
 ```
 
-Warstwa danych nie ma Androida tam, gdzie nie musi: `PhoneText`, `VCard`, `Updates` i `SettingsStore` są czystym Kotlinem i mają testy jednostkowe (`app/src/test`). Test `TranslationsTest` skanuje źródła i nie przepuszcza napisu bez angielskiego odpowiednika.
+Warstwa danych nie ma Androida tam, gdzie nie musi: `PhoneText`, `VCard`, `Updates`, `SettingsStore` i rdzeń asystenta AI są czystym Kotlinem i mają testy jednostkowe (`app/src/test`). Test `TranslationsTest` skanuje źródła i nie przepuszcza napisu bez angielskiego odpowiednika.
 
 ## Budowanie
 
