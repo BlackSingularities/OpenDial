@@ -403,7 +403,10 @@ object CallManager {
     @Suppress("DEPRECATION")
     fun toggleSpeaker() {
         val a = _audio.value ?: return
-        route(if (a.route == CallAudioState.ROUTE_SPEAKER) CallAudioState.ROUTE_WIRED_OR_EARPIECE else CallAudioState.ROUTE_SPEAKER)
+        // Włączenie: zawsze głośnik telefonu (także przy podłączonych słuchawkach Bluetooth).
+        // Wyłączenie: z powrotem do Bluetooth, jeśli jest, inaczej słuchawka lub przewodowe.
+        val off = if ((a.supportedRouteMask and CallAudioState.ROUTE_BLUETOOTH) != 0) CallAudioState.ROUTE_BLUETOOTH else CallAudioState.ROUTE_WIRED_OR_EARPIECE
+        route(if (a.route == CallAudioState.ROUTE_SPEAKER) off else CallAudioState.ROUTE_SPEAKER)
     }
 
     fun dtmf(call: Call, c: Char) {

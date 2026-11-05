@@ -342,9 +342,11 @@ private fun CallerHeader(c: CallView, ended: Boolean, settings: AppSettings) {
             Avatar(c.title, c.photoUri, 128.dp, modifier = if (c.ringing) Modifier.scale(scale) else Modifier)
         }
         Spacer(Modifier.height(6.dp))
+        // Bez nazwy kontaktu: numer w blokach według kraju („71 731 95 00”).
+        val title = c.name ?: PhoneText.pretty(c.number)
         Text(
-            c.title.ifBlank { tr("Numer prywatny") },
-            fontSize = if (c.title.length > 18) 26.sp else 32.sp,
+            title.ifBlank { tr("Numer prywatny") },
+            fontSize = if (title.length > 18) 26.sp else 32.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             maxLines = 2,
@@ -374,10 +376,8 @@ private fun CallerHeader(c: CallView, ended: Boolean, settings: AppSettings) {
                 }
             }
             val blink by pulse.animateFloat(0.35f, 1f, infiniteRepeatable(tween(800), RepeatMode.Reverse), label = "live")
-            Row(
-                Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.08f)).padding(horizontal = 14.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            // Sam licznik z migającą kropką – bez tła i obramowania.
+            Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(8.dp).clip(CircleShape).background(Palette.Answer.copy(alpha = blink)))
                 Spacer(Modifier.width(8.dp))
                 Text(PhoneText.duration(((now - c.connectTime) / 1000).coerceAtLeast(0)), style = MonoDigits.copy(fontSize = 18.sp), color = Color.White)
@@ -598,8 +598,10 @@ private fun OngoingControls(
                     CallAudioState.ROUTE_WIRED_HEADSET -> tr("Słuchawki")
                     else -> tr("Głośnik")
                 },
-                route == CallAudioState.ROUTE_SPEAKER || route == CallAudioState.ROUTE_BLUETOOTH,
-            ) { if (hasBt) onRoutes() else CallManager.toggleSpeaker() },
+                route == CallAudioState.ROUTE_SPEAKER,
+                // Dotknięcie zawsze włącza/wyłącza głośnik telefonu; przytrzymanie – wybór słuchawek Bluetooth i innych wyjść.
+                onLongPress = if (hasBt || route == CallAudioState.ROUTE_WIRED_HEADSET) onRoutes else null,
+            ) { CallManager.toggleSpeaker() },
             if (two && !c.conference) {
                 Toggle(Icons.AutoMirrored.Rounded.CallMerge, tr("Scal"), false, enabled = calls.any { it.canMerge }) { CallManager.merge() }
             } else {
@@ -635,15 +637,28 @@ private fun OngoingControls(
             }
         }
         Spacer(Modifier.height(18.dp))
+        // Okrągły, pełny czerwony przycisk z miękką poświatą – czytelny cel, wyraźnie inny od przełączników.
         Box(
             Modifier
-                .reactive(tr("Rozłącz")) { CallManager.hangup(c.call) }
-                .size(width = 150.dp, height = 72.dp)
-                .clip(RoundedCornerShape(50))
-                .background(Brush.verticalGradient(listOf(Color(0xFFFF5A64), Palette.Record))),
+                .size(84.dp)
+                .drawBehind {
+                    drawCircle(
+                        Brush.radialGradient(listOf(Palette.Record.copy(alpha = 0.35f), Color.Transparent)),
+                        radius = size.minDimension * 0.75f,
+                    )
+                },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Rounded.CallEnd, null, tint = Color.White, modifier = Modifier.size(34.dp))
+            Box(
+                Modifier
+                    .reactive(tr("Rozłącz")) { CallManager.hangup(c.call) }
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(Palette.Record),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Rounded.CallEnd, null, tint = Color.White, modifier = Modifier.size(34.dp))
+            }
         }
     }
 }
@@ -741,14 +756,30 @@ private fun RttRequestDialog(onAccepted: () -> Unit) {
     }
 }
 
-private class Toggle(val icon: ImageVector, val label: String, val on: Boolean, val enabled: Boolean = true, val onClick: () -> Unit)
+private class Toggle(
+    val icon: ImageVector,
+    val label: String,
+    val on: Boolean,
+    val enabled: Boolean = true,
+    val onLongPress: (() -> Unit)? = null,
+    val onClick: () -> Unit,
+)
 
 @Composable
 private fun ToggleButton(t: Toggle) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(92.dp)) {
-        GlassIconButton(t.icon, t.label, size = 64.dp, active = t.on, enabled = t.enabled, state = if (t.on) tr("włączone") else null, onClick = t.onClick)
+        GlassIconButton(
+            t.icon,
+            if (t.onLongPress != null) tr("{0} · przytrzymaj: wybór wyjścia dźwięku", t.label) else t.label,
+            size = 64.dp,
+            active = t.on,
+            enabled = t.enabled,
+            state = if (t.on) tr("włączone") else null,
+            onLongPress = t.onLongPress,
+            onClick = t.onClick,
+        )
         Spacer(Modifier.height(6.dp))
-        Text(t.label, fontSize = 12.sp, color = if (t.enabled) Palette.Call.TextDim else Palette.Call.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.clearAndSetSemantics {})
+        Text(t.label + if (t.onLongPress != null) " ▾" else "",fontSize = 12.sp, color = if (t.enabled) Palette.Call.TextDim else Palette.Call.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.clearAndSetSemantics {})
     }
 }
 

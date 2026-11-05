@@ -757,4 +757,5 @@ internal val En: Map<String, String> = hashMapOf(
     "Zapis na karcie SIM wymaga Androida 12 lub nowszego" to "Saving to the SIM card needs Android 12 or newer",
     "Zapisano na karcie SIM" to "Saved to the SIM card",
     "Zapisywanie…" to "Saving…",
+    "{0} · przytrzymaj: wybór wyjścia dźwięku" to "{0} · hold to choose audio output",
 )

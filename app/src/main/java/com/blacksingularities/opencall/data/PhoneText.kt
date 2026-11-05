@@ -166,14 +166,55 @@ object PhoneText {
         return x.trimStart('0')
     }
 
-    /** Czytelny zapis polskiego numeru: „600100200” → „600 100 200”, „+48600100200” → „+48 600 100 200”. */
+    /**
+     * Formatowanie według reguł kraju (ustawiane przy starcie aplikacji – na Androidzie baza
+     * numeracji systemu, np. „71 731 95 00” dla stacjonarnego z Wrocławia, „600 100 200” dla
+     * komórki). Zwraca null, gdy nie zna numeru; wtedy działa prosty podział poniżej.
+     */
+    @Volatile
+    var countryFormatter: ((String) -> String?)? = null
+
+    /** Czytelny zapis numeru w blokach, zależnie od kraju i długości. Kody USSD/MMI bez zmian. */
     fun pretty(number: String): String {
-        val d = digits(number)
+        val t = number.trim()
+        if (t.isEmpty() || t.contains('*') || t.contains('#') || t.any { it.isLetter() }) return t
+        val d = digits(t)
+        if (d.removePrefix("+").length < 5) return t
+        countryFormatter?.let { f -> runCatching { f(t) }.getOrNull()?.takeIf { it.isNotBlank() }?.let { return it } }
+        return fallbackBlocks(d) ?: t
+    }
+
+    /** Podział bez bazy numeracji: kod kraju osobno, reszta w trójkach (ostatnia grupa ≥ 2 cyfry). */
+    private fun fallbackBlocks(d: String): String? {
         val plain = d.removePrefix("+")
+        if (!d.startsWith("+")) return if (plain.length in 6..12) triples(plain) else null
+        val cc = countryCodeLength(plain)
+        if (plain.length - cc < 4) return null
+        return "+" + plain.take(cc) + " " + triples(plain.drop(cc))
+    }
+
+    private fun triples(s: String): String {
+        val groups = s.chunked(3).toMutableList()
+        // „1234567” → „123 45 67” zamiast „123 456 7”.
+        if (groups.size > 1 && groups.last().length == 1) {
+            val prev = groups[groups.size - 2]
+            groups[groups.size - 2] = prev.dropLast(1)
+            groups[groups.size - 1] = prev.last() + groups.last()
+        }
+        return groups.joinToString(" ")
+    }
+
+    /** Długość kodu kraju wg planu E.164: 1 i 7 – jedna cyfra, większość Europy – dwie, reszta – trzy. */
+    private fun countryCodeLength(plain: String): Int {
+        val two = setOf(
+            "20", "27", "30", "31", "32", "33", "34", "36", "39", "40", "41", "43", "44", "45", "46", "47", "48", "49",
+            "51", "52", "53", "54", "55", "56", "57", "58", "60", "61", "62", "63", "64", "65", "66",
+            "81", "82", "84", "86", "90", "91", "92", "93", "94", "95", "98",
+        )
         return when {
-            d.startsWith("+48") && plain.length == 11 -> "+48 " + plain.drop(2).chunked(3).joinToString(" ")
-            !d.startsWith("+") && plain.length == 9 -> plain.chunked(3).joinToString(" ")
-            else -> number.trim()
+            plain.startsWith("1") || plain.startsWith("7") -> 1
+            plain.take(2) in two -> 2
+            else -> 3
         }
     }
 }

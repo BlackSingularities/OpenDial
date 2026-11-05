@@ -1,5 +1,12 @@
 # Zmiany
 
+## 1.0.1
+
+- Numery telefonów dzielone na bloki według kraju i rodzaju numeru (np. „71 731 95 00”, „600 100 200”, „+49 30 …”), także na ekranie rozmowy.
+- Licznik czasu rozmowy bez tła i obramowania.
+- „Głośnik” zawsze włącza głośnik telefonu, także przy słuchawkach Bluetooth; przytrzymanie przycisku otwiera wybór wyjścia dźwięku.
+- Nowy przycisk rozłączania: okrągły, pełny czerwony, z miękką poświatą.
+
 ## 1.0.0
 
 - Numery alarmowe (112, 997 i inne znane systemowi): dzwonią od razu, bez okna „Zadzwonić?” i bez wyboru karty SIM, także na prośbę innych aplikacji. Przez 30 minut po takim połączeniu żadna blokada, wyciszanie ani asystent AI nie zatrzyma oddzwaniających służb. Ekran rozmowy oznacza połączenie alarmowe.
