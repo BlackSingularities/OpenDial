@@ -656,8 +656,7 @@ private fun RttPanel(c: CallView, onClose: () -> Unit) {
     var draft by remember(c.call) { mutableStateOf("") }
     fun commit() {
         if (draft.isBlank()) return
-        CallManager.sendRtt(c.call, "
-")
+        CallManager.sendRtt(c.call, "\n")
         CallManager.rttCommitMine(c.call, draft)
         draft = ""
     }
@@ -686,8 +685,7 @@ private fun RttPanel(c: CallView, onClose: () -> Unit) {
                 val l = lines[i]
                 Box(Modifier.fillMaxWidth(), contentAlignment = if (l.mine) Alignment.CenterEnd else Alignment.CenterStart) {
                     Text(
-                        l.text.trimEnd('
-'),
+                        l.text.trimEnd('\n'),
                         fontSize = 15.sp,
                         color = if (l.mine) Palette.Call.Ink else Color.White,
                         modifier = Modifier
@@ -704,9 +702,8 @@ private fun RttPanel(c: CallView, onClose: () -> Unit) {
                 if (!c.rtt) return@DarkField
                 // Różnica względem poprzedniego tekstu: dopisane znaki albo backspace.
                 val common = draft.commonPrefixWith(v).length
-                val out = "".repeat(draft.length - common) + v.substring(common)
-                if (v.endsWith("
-")) {
+                val out = "\b".repeat(draft.length - common) + v.substring(common)
+                if (v.endsWith("\n")) {
                     CallManager.sendRtt(c.call, out.dropLast(1))
                     draft = v.dropLast(1)
                     commit()

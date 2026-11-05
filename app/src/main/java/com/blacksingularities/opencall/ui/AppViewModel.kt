@@ -490,8 +490,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 toast(tr("IMEI znajdziesz w Informacjach o telefonie"))
                 openIntent(Intent(android.provider.Settings.ACTION_DEVICE_INFO_SETTINGS))
             } else {
-                infoDialog = tr("IMEI") to ids.mapIndexed { i, id -> if (ids.size > 1) "SIM ${i + 1}: $id" else id }.joinToString("
-")
+                infoDialog = tr("IMEI") to ids.mapIndexed { i, id -> if (ids.size > 1) "SIM ${i + 1}: $id" else id }.joinToString("\n")
             }
             true
         }

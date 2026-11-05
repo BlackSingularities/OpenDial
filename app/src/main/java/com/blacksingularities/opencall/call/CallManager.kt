@@ -149,7 +149,7 @@ object CallManager {
         changed()
     }
 
-    /** Wysyła znaki od razu, jak w RTT: dopisane litery albo „” za każdy skasowany znak. */
+    /** Wysyła znaki od razu, jak w RTT: dopisane litery albo „\b” za każdy skasowany znak. */
     fun sendRtt(call: Call, text: String) {
         if (text.isEmpty()) return
         val rtt = call.rttCall ?: return
@@ -168,21 +168,18 @@ object CallManager {
             var rest = text
             while (rest.isNotEmpty()) {
                 val last = list.lastOrNull()
-                val cut = rest.indexOf('
-')
+                val cut = rest.indexOf('\n')
                 val chunk = if (cut >= 0) rest.substring(0, cut) else rest
-                if (!newLine && last != null && last.mine == mine && !last.text.endsWith("
-")) {
+                if (!newLine && last != null && last.mine == mine && !last.text.endsWith("\n")) {
                     // Backspace z drugiej strony kasuje ostatni znak.
                     var t = last.text
-                    chunk.forEach { ch -> t = if (ch == '') t.dropLast(1) else t + ch }
+                    chunk.forEach { ch -> t = if (ch == '\b') t.dropLast(1) else t + ch }
                     list[list.lastIndex] = last.copy(text = t)
                 } else {
-                    list.add(RttLine(mine, chunk.filter { it != '' }))
+                    list.add(RttLine(mine, chunk.filter { it != '\b' }))
                 }
                 if (cut >= 0) {
-                    list[list.lastIndex] = list.last().let { it.copy(text = it.text + "
-") }
+                    list[list.lastIndex] = list.last().let { it.copy(text = it.text + "\n") }
                     rest = rest.substring(cut + 1)
                 } else {
                     rest = ""
