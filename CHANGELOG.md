@@ -1,5 +1,11 @@
 # Zmiany
 
+## 1.0.2
+
+- Zakładki u góry: filtry historii, Ulubione i Kontakty w jednym pasku, przełączane też przesunięciem palca w bok. Dolny pasek usunięty.
+- Menu „⋮” zamiast przycisku ustawień: Zablokowane, Statystyki, Ustawienia – z ikonami, a kropka przy Ustawieniach oznacza czekającą aktualizację.
+- Bardziej zwarty nagłówek: mniejsze przyciski i pole szukania, ciaśniejsze zakładki i nagłówki list.
+
 ## 1.0.1
 
 - Numery telefonów dzielone na bloki według kraju i rodzaju numeru (np. „71 731 95 00”, „600 100 200”, „+49 30 …”), także na ekranie rozmowy.

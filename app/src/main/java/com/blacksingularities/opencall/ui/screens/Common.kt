@@ -21,6 +21,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.BarChart
+import androidx.compose.material.icons.automirrored.rounded.CallMade
+import androidx.compose.material.icons.automirrored.rounded.CallReceived
+import androidx.compose.material.icons.automirrored.rounded.CallMissed
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Contacts
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.automirrored.rounded.PhoneForwarded
@@ -103,7 +112,7 @@ fun SearchHeader(
                 if (p < 1f) {
                     Box(Modifier.fillMaxWidth().padding(end = 50.dp).graphicsLayer { alpha = 1f - p }) { leading() }
                 }
-                SearchPill(searching, p, query, onQuery, hint, { onSearching(true) }, close, Modifier.width(lerp(44.dp, maxWidth, p)))
+                SearchPill(searching, p, query, onQuery, hint, { onSearching(true) }, close, Modifier.width(lerp(40.dp, maxWidth, p)))
             }
             actions()
             MoreMenu(vm)
@@ -127,12 +136,12 @@ private fun SearchPill(
     val focus = remember { FocusRequester() }
     LaunchedEffect(searching) { if (searching) runCatching { focus.requestFocus() } }
     Row(
-        modifier.height(44.dp).glass(RoundedCornerShape(50)).clip(RoundedCornerShape(50)),
+        modifier.height(40.dp).glass(RoundedCornerShape(50)).clip(RoundedCornerShape(50)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val label = if (searching) tr("Zamknij wyszukiwanie") else tr("Szukaj")
-        Box(Modifier.size(44.dp).reactive(label, onClick = if (searching) onClose else onOpen), contentAlignment = Alignment.Center) {
-            Icon(if (searching) Icons.AutoMirrored.Rounded.ArrowBack else Icons.Rounded.Search, null, tint = Palette.Fg, modifier = Modifier.size(22.dp))
+        Box(Modifier.size(40.dp).reactive(label, onClick = if (searching) onClose else onOpen), contentAlignment = Alignment.Center) {
+            Icon(if (searching) Icons.AutoMirrored.Rounded.ArrowBack else Icons.Rounded.Search, null, tint = Palette.Fg, modifier = Modifier.size(20.dp))
         }
         if (searching || p > 0f) {
             Box(Modifier.weight(1f).graphicsLayer { alpha = p }) {
@@ -235,10 +244,10 @@ fun ListHeader(text: String, modifier: Modifier = Modifier) {
     Text(
         text.uppercase(),
         color = Palette.Amber,
-        fontSize = 11.sp,
+        fontSize = 10.sp,
         fontWeight = FontWeight.Bold,
-        letterSpacing = 1.4.sp,
-        modifier = modifier.padding(start = 22.dp, top = 14.dp, bottom = 4.dp),
+        letterSpacing = 1.2.sp,
+        modifier = modifier.padding(start = 20.dp, top = 12.dp, bottom = 2.dp),
     )
 }
 
@@ -248,17 +257,26 @@ fun ListHeader(text: String, modifier: Modifier = Modifier) {
 fun MoreMenu(vm: AppViewModel) {
     var open by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     Box {
-        RoundIcon(androidx.compose.material.icons.Icons.Rounded.MoreVert, tr("Więcej"), badge = if (vm.updatePending) "1" else null) { open = true }
-        androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        RoundIcon(androidx.compose.material.icons.Icons.Rounded.MoreVert, tr("Więcej"), badge = if (vm.updatePending) "1" else null, size = 40.dp) { open = true }
+        androidx.compose.material3.DropdownMenu(
+            expanded = open,
+            onDismissRequest = { open = false },
+            shape = RoundedCornerShape(18.dp),
+            containerColor = Palette.PanelHigh,
+        ) {
             @Composable
-            fun item(label: String, route: Route) = androidx.compose.material3.DropdownMenuItem(
-                text = { Text(label) },
+            fun item(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, route: Route, dot: Boolean = false) = androidx.compose.material3.DropdownMenuItem(
+                text = { Text(label, color = Palette.Fg, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
+                leadingIcon = { Icon(icon, null, tint = Palette.TextFaint, modifier = Modifier.size(20.dp)) },
+                trailingIcon = if (dot) ({ Box(Modifier.size(8.dp).clip(RoundedCornerShape(50)).background(Palette.Record)) }) else null,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+                modifier = Modifier.height(44.dp),
                 onClick = { open = false; vm.push(route) },
             )
-            if (!vm.settings.showFavoritesTab) item(tr("Ulubione"), Route.Favorites)
-            item(tr("Zablokowane numery i filtry"), Route.Blocked)
-            item(tr("Statystyki"), Route.Stats)
-            item(tr("Ustawienia"), Route.Settings)
+            if (!vm.settings.showFavoritesTab) item(androidx.compose.material.icons.Icons.Rounded.Star, tr("Ulubione"), Route.Favorites)
+            item(androidx.compose.material.icons.Icons.Rounded.Block, tr("Zablokowane numery i filtry"), Route.Blocked)
+            item(androidx.compose.material.icons.Icons.Rounded.BarChart, tr("Statystyki"), Route.Stats)
+            item(Icons.Rounded.Settings, tr("Ustawienia"), Route.Settings, dot = vm.updatePending)
         }
     }
 }

@@ -453,7 +453,7 @@ fun TabChip(icon: ImageVector?, label: String, selected: Boolean, modifier: Modi
             .reactive(label, onClick = onClick)
             .glass(BlockShape, active = selected)
             .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow))
-            .padding(horizontal = if (showLabel) 12.dp else 10.dp, vertical = 7.dp),
+            .padding(horizontal = if (showLabel) 11.dp else 9.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
@@ -479,7 +479,7 @@ fun TabChip(icon: ImageVector?, label: String, selected: Boolean, modifier: Modi
 fun ChipRow(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
     Row(
         modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
     )
