@@ -13,6 +13,9 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import com.blacksingularities.opencall.ui.screens.stepPage
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -148,83 +151,33 @@ private fun OngoingCallBar(): Boolean {
 
 @Composable
 private fun MainTabs(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions: () -> Unit) {
-    Column(Modifier.fillMaxSize()) {
-        Box(Modifier.weight(1f)) {
-            AnimatedContent(
-                targetState = vm.tab,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "tab",
-            ) { t ->
-                when (t) {
-                    0 -> FavoritesTab(vm, onRequestRole, onRequestPermissions)
-                    2 -> ContactsTab(vm, onRequestRole, onRequestPermissions)
-                    else -> RecentsTab(vm, onRequestRole, onRequestPermissions)
-                }
-            }
-        }
-        BottomBar(vm)
-    }
-}
-
-@Composable
-private fun BottomBar(vm: AppViewModel) {
-    Row(
+    // Przesunięcie palcem w bok zmienia zakładkę (ulubione → filtry historii → kontakty).
+    val threshold = with(androidx.compose.ui.platform.LocalDensity.current) { 72.dp.toPx() }
+    Box(
         Modifier
-            .fillMaxWidth()
-            .background(Palette.Ink)
+            .fillMaxSize()
             .windowInsetsPadding(WindowInsets.navigationBars)
-            .padding(horizontal = 6.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+            .pointerInput(Unit) {
+                var acc = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { acc = 0f },
+                    onDragEnd = {
+                        if (acc <= -threshold) vm.stepPage(1) else if (acc >= threshold) vm.stepPage(-1)
+                        acc = 0f
+                    },
+                ) { _, dx -> acc += dx }
+            },
     ) {
-        if (vm.settings.showFavoritesTab) TabItem(Icons.Rounded.Star, tr("Ulubione"), vm.tab == 0) { vm.selectTab(0) }
-        // „Telefon” = historia i klawiatura w jednym widoku; ponowne dotknięcie rozwija/zwija klawiaturę.
-        TabItem(Icons.Rounded.Call, tr("Telefon"), vm.tab == 1, badge = vm.unseenMissed) {
-            if (vm.tab == 1) vm.keypadOpen = !vm.keypadOpen else vm.selectTab(1)
-        }
-        TabItem(Icons.Rounded.Contacts, tr("Kontakty"), vm.tab == 2) { vm.selectTab(2) }
-    }
-}
-
-/** Zakładka dolnego paska: sama ikona, a wybrana – pigułka z ikoną i nazwą. */
-@Composable
-private fun RowScope.TabItem(icon: ImageVector, label: String, selected: Boolean, badge: Int = 0, onClick: () -> Unit) {
-    // Styl wspólny dla aplikacji Open: wybrana zakładka to biały kafel z czarną ikoną i podpisem.
-    val bg by animateColorAsState(if (selected) Palette.Fg else Color.Transparent, label = "tabBg")
-    val tint by animateColorAsState(if (selected) Palette.Ink else Palette.TextDim, label = "tabTint")
-    Box(Modifier.weight(1f)) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(6.dp))
-                .background(bg)
-                .reactive(label, onClick = onClick)
-                .padding(top = 7.dp, bottom = 6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Icon(icon, null, tint = tint, modifier = Modifier.size(21.dp))
-            Spacer(Modifier.height(3.dp))
-            Text(
-                label,
-                color = tint,
-                fontSize = 10.sp,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                maxLines = 1,
-                softWrap = false,
-            )
-        }
-        if (badge > 0) {
-            Text(
-                if (badge > 99) "99+" else badge.toString(),
-                color = Palette.Fg,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Black,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(start = 26.dp, top = 2.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(Palette.Record)
-                    .padding(horizontal = 5.dp, vertical = 1.dp),
-            )
+        AnimatedContent(
+            targetState = vm.tab,
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            label = "tab",
+        ) { t ->
+            when (t) {
+                0 -> FavoritesTab(vm, onRequestRole, onRequestPermissions)
+                2 -> ContactsTab(vm, onRequestRole, onRequestPermissions)
+                else -> RecentsTab(vm, onRequestRole, onRequestPermissions)
+            }
         }
     }
 }

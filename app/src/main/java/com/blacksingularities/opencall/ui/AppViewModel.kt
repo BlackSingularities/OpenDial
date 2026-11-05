@@ -314,6 +314,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Wybrany filtr historii (0 = wszystkie … 4 = zablokowane). */
+    var recentFilter by mutableIntStateOf(0)
+
     fun selectTab(i: Int) {
         tab = i
         if (settings.lastTab != i) updateSettings { it.copy(lastTab = i) }

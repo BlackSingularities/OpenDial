@@ -148,7 +148,7 @@ fun ContactsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermission
                 RoundIcon(Icons.Rounded.Delete, tr("Usuń zaznaczone"), tint = Palette.Record) { confirmDelete = true }
             }
         } else {
-            SearchHeader(vm, searching, { searching = it }, query, { query = it }, tr("Szukaj wśród {0} kontaktów", vm.contacts.size)) {
+            SearchHeader(vm, searching, { searching = it }, query, { query = it }, tr("Szukaj wśród {0} kontaktów", vm.contacts.size), leading = { NavChips(vm) }) {
                 if (!searching) RoundIcon(Icons.Rounded.PersonAdd, tr("Nowy kontakt"), enabled = vm.hasContacts) { vm.newContact() }
             }
         }

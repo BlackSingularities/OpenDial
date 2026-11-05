@@ -95,7 +95,7 @@ private enum class RecentFilter { ALL, MISSED, INCOMING, OUTGOING, BLOCKED }
 
 @Composable
 fun RecentsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions: () -> Unit) {
-    var filter by rememberSaveable { mutableStateOf(RecentFilter.ALL) }
+    val filter = RecentFilter.entries[vm.recentFilter.coerceIn(0, 4)]
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var expanded by remember { mutableStateOf<String?>(null) }
@@ -139,13 +139,7 @@ fun RecentsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions
             },
             query, { query = it }, tr("Szukaj w historii"),
             leading = {
-                if (!typing) ChipRow {
-                    TabChip(Icons.Rounded.History, tr("Wszystkie"), filter == RecentFilter.ALL, compact = true) { filter = RecentFilter.ALL }
-                    TabChip(Icons.AutoMirrored.Rounded.CallMissed, tr("Nieodebrane"), filter == RecentFilter.MISSED, compact = true) { filter = RecentFilter.MISSED }
-                    TabChip(Icons.AutoMirrored.Rounded.CallReceived, tr("Przychodzące"), filter == RecentFilter.INCOMING, compact = true) { filter = RecentFilter.INCOMING }
-                    TabChip(Icons.AutoMirrored.Rounded.CallMade, tr("Wychodzące"), filter == RecentFilter.OUTGOING, compact = true) { filter = RecentFilter.OUTGOING }
-                    TabChip(Icons.Rounded.Block, tr("Zablokowane"), filter == RecentFilter.BLOCKED, compact = true) { filter = RecentFilter.BLOCKED }
-                }
+                if (!typing) NavChips(vm)
             },
         )
         Box(Modifier.weight(1f).fillMaxWidth()) {

@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,13 +62,13 @@ import com.blacksingularities.opencall.ui.theme.reactive
  * gdy czeka aktualizacja). Nazwę zakładki widać na dolnym pasku, więc nie zajmuje tu miejsca.
  */
 @Composable
-fun TabHeader(vm: AppViewModel, actions: @Composable RowScope.() -> Unit = {}) {
-    Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 12.dp, top = 8.dp)) {
+fun TabHeader(vm: AppViewModel, leading: (@Composable () -> Unit)? = null, actions: @Composable RowScope.() -> Unit = {}) {
+    Column(Modifier.fillMaxWidth().padding(start = 14.dp, end = 12.dp, top = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
-            Spacer(Modifier.weight(1f))
+            Box(Modifier.weight(1f)) { leading?.invoke() }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 actions()
-                RoundIcon(Icons.Rounded.Settings, tr("Ustawienia"), badge = if (vm.updatePending) "1" else null) { vm.push(Route.Settings) }
+                MoreMenu(vm)
             }
         }
         UpdateBanner(vm, Modifier.padding(top = 10.dp, end = 6.dp))
@@ -105,7 +106,7 @@ fun SearchHeader(
                 SearchPill(searching, p, query, onQuery, hint, { onSearching(true) }, close, Modifier.width(lerp(44.dp, maxWidth, p)))
             }
             actions()
-            RoundIcon(Icons.Rounded.Settings, tr("Ustawienia"), badge = if (vm.updatePending) "1" else null) { vm.push(Route.Settings) }
+            MoreMenu(vm)
         }
         UpdateBanner(vm, Modifier.padding(top = 10.dp, end = 6.dp))
     }
@@ -239,4 +240,68 @@ fun ListHeader(text: String, modifier: Modifier = Modifier) {
         letterSpacing = 1.4.sp,
         modifier = modifier.padding(start = 22.dp, top = 14.dp, bottom = 4.dp),
     )
+}
+
+
+/** Przycisk „⋮” z menu: ustawienia i najczęstsze narzędzia. */
+@Composable
+fun MoreMenu(vm: AppViewModel) {
+    var open by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    Box {
+        RoundIcon(androidx.compose.material.icons.Icons.Rounded.MoreVert, tr("Więcej"), badge = if (vm.updatePending) "1" else null) { open = true }
+        androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            @Composable
+            fun item(label: String, route: Route) = androidx.compose.material3.DropdownMenuItem(
+                text = { Text(label) },
+                onClick = { open = false; vm.push(route) },
+            )
+            if (!vm.settings.showFavoritesTab) item(tr("Ulubione"), Route.Favorites)
+            item(tr("Zablokowane numery i filtry"), Route.Blocked)
+            item(tr("Statystyki"), Route.Stats)
+            item(tr("Ustawienia"), Route.Settings)
+        }
+    }
+}
+
+/** Kolejność zakładek głównego ekranu – ta sama dla chipów u góry i przesuwania palcem w bok. */
+fun mainPages(vm: AppViewModel): List<Pair<Int, Int>> = buildList {
+    if (vm.settings.showFavoritesTab) add(0 to 0)
+    for (f in 0..4) add(1 to f)
+    add(2 to 0)
+}
+
+fun AppViewModel.goPage(page: Pair<Int, Int>) {
+    if (page.first == 1) recentFilter = page.second
+    if (tab != page.first) selectTab(page.first)
+}
+
+/** Przesuwa o [delta] zakładek (przesunięcie palcem w bok). */
+fun AppViewModel.stepPage(delta: Int) {
+    val pages = mainPages(this)
+    val cur = pages.indexOf(if (tab == 1) 1 to recentFilter else tab to 0).coerceAtLeast(0)
+    pages.getOrNull(cur + delta)?.let { goPage(it) }
+}
+
+/** Górny pasek zakładek: ulubione, filtry historii i kontakty. */
+@Composable
+fun NavChips(vm: AppViewModel) {
+    val icons = listOf(
+        androidx.compose.material.icons.Icons.Rounded.History to tr("Wszystkie"),
+        androidx.compose.material.icons.Icons.AutoMirrored.Rounded.CallMissed to tr("Nieodebrane"),
+        androidx.compose.material.icons.Icons.AutoMirrored.Rounded.CallReceived to tr("Przychodzące"),
+        androidx.compose.material.icons.Icons.AutoMirrored.Rounded.CallMade to tr("Wychodzące"),
+        androidx.compose.material.icons.Icons.Rounded.Block to tr("Zablokowane"),
+    )
+    com.blacksingularities.opencall.ui.components.ChipRow {
+        mainPages(vm).forEach { page ->
+            val selected = vm.tab == page.first && (page.first != 1 || vm.recentFilter == page.second)
+            val (icon, label) = when (page.first) {
+                0 -> androidx.compose.material.icons.Icons.Rounded.Star to tr("Ulubione")
+                2 -> androidx.compose.material.icons.Icons.Rounded.Contacts to tr("Kontakty")
+                else -> icons[page.second]
+            }
+            val badge = if (page == (1 to 1) && vm.unseenMissed > 0) vm.unseenMissed else null
+            com.blacksingularities.opencall.ui.components.TabChip(icon, label, selected, count = badge, compact = true) { vm.goPage(page) }
+        }
+    }
 }
