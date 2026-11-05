@@ -26,6 +26,8 @@ Aby OpenDial obsługiwał ekran rozmowy, odbieranie, blokowanie i powiadomienia 
 | **Tony i wibracja** | Tony DTMF i wibracja klawiszy – osobno przełączane. |
 | **Dwie karty SIM** | Wybór karty przy dzwonieniu albo karta domyślna; na liście połączeń widać, z której karty było połączenie. |
 | **Kody MMI** | Numery z `*` i `#` (np. `*100#`) przechodzą do systemu bez formatowania. |
+| **Kody serwisowe** | `*#06#` pokazuje IMEI, `*#07#` prowadzi do wartości SAR, a `*#*#…#*#*` trafia do systemu – zaraz po wpisaniu, bez dzwonienia. |
+| **Numery alarmowe** | 112, 997 i inne numery znane systemowi dzwonią od razu: bez potwierdzenia, bez wyboru karty, także na prośbę innych aplikacji. Przez 30 minut po takim połączeniu filtry i asystent AI nie zatrzymają oddzwaniających służb. |
 | **Potwierdzanie** | Opcjonalne okno „Zadzwonić?” chroni przed przypadkowym dotknięciem. |
 
 ### Ekran rozmowy
@@ -36,12 +38,16 @@ Aby OpenDial obsługiwał ekran rozmowy, odbieranie, blokowanie i powiadomienia 
 - Odrzucenie z wiadomością SMS z listy szybkich odpowiedzi (edytowalnej w ustawieniach).
 - Wygaszanie ekranu przy uchu (czujnik zbliżeniowy), wibracja przy odebraniu i przy zakończeniu, pokazywanie ekranu na zablokowanym telefonie.
 - Powiadomienie o trwającej rozmowie z licznikiem czasu i powrotem do ekranu rozmowy.
+- **RTT** – rozmowa tekstowa w czasie rzeczywistym (gdy wspiera ją sieć), litery idą do rozmówcy już w trakcie pisania; tryb TTY w ustawieniach ułatwień dostępu w połączeniach.
+- Etykiety **Wi-Fi** i **HD**, gdy połączenie idzie przez Wi-Fi Calling albo ma dźwięk HD (VoLTE / VoWiFi).
+- Pełna obsługa TalkBacka i Switch Access: każdy przycisk ma nazwę i akcję, przy czytniku ekranu odbiera się przyciskami zamiast gałki.
 
 ### Historia połączeń
 - Przychodzące, wychodzące, nieodebrane, odrzucone, zablokowane i poczta głosowa – z filtrami i wyszukiwaniem.
 - **Grupowanie** kolejnych połączeń z tym samym numerem tego samego dnia w jeden wiersz.
 - Szczegóły wpisu: wszystkie połączenia z numerem, czas trwania, karta SIM, lokalizacja numeru.
 - Dotknięcie wpisu konfigurowalne: rozwinięcie, połączenie albo szczegóły.
+- **Poczta głosowa** – odsłuch nagrań prosto z listy, gdy operator dostarcza je do telefonu (wizualna poczta głosowa).
 - Usuwanie pojedynczych wpisów, całej historii numeru lub całego rejestru; eksport do CSV (średnik i BOM – otwiera się w Excelu i Arkuszach bez kreatora importu).
 - Powiadomienia o nieodebranych z oddzwonieniem i SMS-em jednym dotknięciem.
 
@@ -49,6 +55,7 @@ Aby OpenDial obsługiwał ekran rozmowy, odbieranie, blokowanie i powiadomienia 
 - Lista z indeksem, wyszukiwaniem (nazwa, numer, T9) i sekcją **„Często”** – najczęściej wybierani rozmówcy.
 - Ulubione z szybkim dzwonieniem i SMS-em – zakładkę można całkowicie usunąć z dolnego paska i otwierać listę z ustawień.
 - **Edytor kontaktu**: imię, drugie imię, nazwisko, tytuł, przyrostek, pseudonim, firma, stanowisko, wiele numerów i e-maili z rodzajami, adresy, strona WWW, urodziny, notatka, zdjęcie, wybór konta zapisu.
+- **Kontakty na karcie SIM** (Android 12+): zapis, edycja i usuwanie nazwy i numeru na samej karcie przez `SimPhonebookContract`, z licznikami miejsca (polskie znaki zajmują więcej) i odczytem kontrolnym po zapisie. Pomysł zapisu z weryfikacją na karcie podsunął Ami982, autor aplikacji Kontakty SIM.
 - **Dzwonek na kontakt**, blokowanie osoby, udostępnianie jako vCard, pokazanie adresu na mapie.
 - **Duplikaty** – wyszukiwanie kontaktów o tym samym numerze lub nazwie i scalanie ich (bez usuwania danych).
 - **Kopia zapasowa**: eksport i import `.vcf` (Google, iPhone, Outlook) z pominięciem kontaktów, które już są w telefonie.
@@ -71,7 +78,8 @@ Liczba połączeń, łączny i średni czas rozmów, najdłuższa rozmowa, najcz
 - Styl „glass” jak w pozostałych aplikacjach z tej rodziny: ciemne przezierne panele, miękkie cienie, płynne przejścia między ekranami.
 - Pełna obsługa polskiego i angielskiego – automatycznie według języka systemu albo wybrany w ustawieniach (również dla numerów i dat).
 - Wibracja przycisków, wybór ekranu startowego, ukrywanie zakładki „Ulubione”, kolejność nazw (Imię Nazwisko / Nazwisko, Imię), ukrywanie kontaktów bez numeru.
-- Własna ciemna paleta (Material 3), ikona adaptacyjna i monochromatyczna (motyw ikon w Androidzie 13+).
+- Motyw jasny, ciemny albo według systemu (Material 3); ekran rozmowy zawsze ciemny. Ikona adaptacyjna i monochromatyczna (motyw ikon w Androidzie 13+).
+- **Skróty i widżet** – przytrzymanie ikony aplikacji daje „Nowy kontakt” i ulubionych, widżet „Ulubione” dzwoni jednym dotknięciem.
 - Zakładki bez wielkich tytułów: w nagłówku „Ostatnich” i „Kontaktów” stoi pole wyszukiwania, więc listy zaczynają się wyżej.
 
 ### Asystent AI – „Kto dzwoni naprawdę”

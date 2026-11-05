@@ -34,6 +34,12 @@ class ScreeningService : CallScreeningService() {
             respondToCall(details, CallResponse.Builder().build())
             return
         }
+        // Po połączeniu alarmowym służby mogą oddzwonić z dowolnego (także ukrytego) numeru:
+        // żadnych blokad, wyciszania ani przekazywania do asystenta.
+        if (Dialer.recentEmergency(this)) {
+            respondToCall(details, CallResponse.Builder().build())
+            return
+        }
         val s = SettingsStore(this).load()
         val number = details.handle?.schemeSpecificPart ?: ""
         val hidden = number.isBlank() ||

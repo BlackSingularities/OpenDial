@@ -69,7 +69,7 @@ fun Keypad(
                             ) { onKey(digit) }
                             .size(keySize)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.07f)),
+                            .background(Palette.Fg.copy(alpha = 0.07f)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -77,7 +77,7 @@ fun Keypad(
                                 digit.toString(),
                                 fontSize = (keySize.value * 0.4f).sp,
                                 fontWeight = FontWeight.Normal,
-                                color = Color.White,
+                                color = Palette.Fg,
                                 lineHeight = (keySize.value * 0.42f).sp,
                             )
                             if (letters.isNotEmpty()) {
@@ -86,7 +86,7 @@ fun Keypad(
                                     fontSize = (keySize.value * 0.13f).sp,
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.5.sp,
-                                    color = if (hasSpeed) Color.White else Palette.TextDim,
+                                    color = if (hasSpeed) Palette.Fg else Palette.TextDim,
                                     lineHeight = (keySize.value * 0.15f).sp,
                                 )
                             } else {
@@ -94,7 +94,7 @@ fun Keypad(
                             }
                         }
                         if (hasSpeed) {
-                            Box(Modifier.align(Alignment.TopEnd).size(6.dp).clip(CircleShape).background(Color.White))
+                            Box(Modifier.align(Alignment.TopEnd).size(6.dp).clip(CircleShape).background(Palette.Fg))
                         }
                     }
                 }

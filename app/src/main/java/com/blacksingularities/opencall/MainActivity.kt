@@ -34,7 +34,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
         UpdateManager.clearUpdatedNotification(this)
         CallManager.attach(this)
         if (savedInstanceState == null) handleIntent(intent)
@@ -46,7 +45,18 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            OpenDialTheme {
+            val dark = com.blacksingularities.opencall.ui.theme.isDark(vm.settings.theme)
+            OpenDialTheme(
+                dark = dark,
+                onDarkChanged = { d ->
+                    // Ikony paska stanu i nawigacji: ciemne na jasnym motywie.
+                    WindowCompat.getInsetsController(window, window.decorView).apply {
+                        isAppearanceLightStatusBars = !d
+                        isAppearanceLightNavigationBars = !d
+                    }
+                    window.decorView.setBackgroundColor(if (d) android.graphics.Color.BLACK else android.graphics.Color.WHITE)
+                },
+            ) {
                 AppRoot(vm, onRequestRole = ::requestRole, onRequestPermissions = ::requestPermissions)
             }
         }
@@ -72,7 +82,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        vm.reload()
+        // Po ekranie rozmowy (zawsze ciemnym) wraca motyw aplikacji.
+        com.blacksingularities.opencall.ui.theme.ThemeState.dark = com.blacksingularities.opencall.ui.theme.ThemeState.appDark
+        vm.refreshOnResume()
         vm.checkUpdateIfDue()
     }
 
@@ -92,6 +104,25 @@ class MainActivity : ComponentActivity() {
                     data?.scheme == "voicemail" -> vm.voicemail()
                     data != null && data.authority == ContactsContract.AUTHORITY -> openContact(data)
                     intent.action == Intent.ACTION_DIAL || intent.action == Intent.ACTION_CALL_BUTTON -> openDialer("")
+                }
+            }
+            Intent.ACTION_CALL, ACTION_CALL_PRIVILEGED, ACTION_CALL_EMERGENCY, ACTION_DIAL_EMERGENCY -> {
+                val number = intent.data?.takeIf { it.scheme == "tel" }?.schemeSpecificPart.orEmpty()
+                val dial = intent.action == ACTION_DIAL_EMERGENCY
+                // Inna aplikacja nie może przez nas zadzwonić na zwykły numer bez zgody – tylko alarmowy.
+                if (!dial && number.isNotBlank() && com.blacksingularities.opencall.call.Dialer.isEmergency(this, number)) {
+                    vm.call(number)
+                } else {
+                    openDialer(number)
+                }
+            }
+            com.blacksingularities.opencall.launcher.Launcher.ACTION_CALL_FAVORITE -> {
+                // Skrót z ikony albo widżet: dzwoni tylko z poprawnym tokenem, inaczej otwiera klawiaturę.
+                val number = intent.data?.schemeSpecificPart.orEmpty()
+                if (number.isNotBlank() && com.blacksingularities.opencall.launcher.Launcher.isTrusted(this, intent)) {
+                    vm.call(number)
+                } else {
+                    openDialer(number)
                 }
             }
             Intent.ACTION_INSERT -> {
@@ -132,6 +163,10 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
+        // Ukryte w SDK stałe systemowych intencji połączeń.
+        const val ACTION_CALL_PRIVILEGED = "android.intent.action.CALL_PRIVILEGED"
+        const val ACTION_CALL_EMERGENCY = "android.intent.action.CALL_EMERGENCY"
+        const val ACTION_DIAL_EMERGENCY = "android.intent.action.DIAL_EMERGENCY"
         const val ACTION_SHOW_RECENTS = "com.blacksingularities.opencall.SHOW_RECENTS"
         const val ACTION_SHOW_BLOCKED = "com.blacksingularities.opencall.SHOW_BLOCKED"
         const val ACTION_SHOW_AI = "com.blacksingularities.opencall.SHOW_AI"

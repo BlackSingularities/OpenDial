@@ -208,11 +208,11 @@ fun StatsScreen(vm: AppViewModel) {
 }
 
 @Composable
-private fun StatTile(label: String, value: String, modifier: Modifier, icon: androidx.compose.ui.graphics.vector.ImageVector? = null, tint: Color = Color.White) {
+private fun StatTile(label: String, value: String, modifier: Modifier, icon: androidx.compose.ui.graphics.vector.ImageVector? = null, tint: Color = Palette.Fg) {
     Column(
         modifier
             .clip(RoundedCornerShape(18.dp))
-            .background(Color.White.copy(alpha = 0.06f))
+            .background(Palette.Fg.copy(alpha = 0.06f))
             .padding(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -235,8 +235,8 @@ private fun BarRow(name: String, value: String, fraction: Float) {
             Text(value, fontSize = 13.sp, color = Palette.TextDim, fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(4.dp))
-        Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.08f))) {
-            Box(Modifier.fillMaxWidth(fraction.coerceIn(0.02f, 1f)).fillMaxHeight().clip(RoundedCornerShape(50)).background(Color.White))
+        Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(50)).background(Palette.Fg.copy(alpha = 0.08f))) {
+            Box(Modifier.fillMaxWidth(fraction.coerceIn(0.02f, 1f)).fillMaxHeight().clip(RoundedCornerShape(50)).background(Palette.Fg))
         }
     }
 }
@@ -258,7 +258,7 @@ private fun Columns(values: List<Int>, labels: List<String>) {
                         .fillMaxWidth()
                         .height((70f * v / max).dp.coerceAtLeast(2.dp))
                         .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
-                        .background(if (v == max) Color.White else Color.White.copy(alpha = 0.35f)),
+                        .background(if (v == max) Palette.Fg else Palette.Fg.copy(alpha = 0.35f)),
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(labels.getOrElse(i) { "" }, fontSize = 10.sp, color = Palette.TextDim, maxLines = 1)

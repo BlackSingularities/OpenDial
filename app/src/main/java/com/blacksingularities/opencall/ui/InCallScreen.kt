@@ -50,6 +50,8 @@ import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.CallEnd
 import androidx.compose.material.icons.automirrored.rounded.CallSplit
 import androidx.compose.material.icons.rounded.Dialpad
+import androidx.compose.material.icons.rounded.Keyboard
+import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Headset
@@ -66,6 +68,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -82,6 +85,12 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -95,6 +104,7 @@ import com.blacksingularities.opencall.data.PhoneText
 import com.blacksingularities.opencall.i18n.tr
 import com.blacksingularities.opencall.ui.components.ActionRow
 import com.blacksingularities.opencall.ui.components.DarkDialog
+import com.blacksingularities.opencall.ui.components.DarkField
 import com.blacksingularities.opencall.ui.components.PillButton
 import com.blacksingularities.opencall.ui.theme.GlassIconButton
 import com.blacksingularities.opencall.ui.theme.MonoDigits
@@ -121,6 +131,7 @@ fun InCallScreen(
     var replies by remember { mutableStateOf(false) }
     var routes by remember { mutableStateOf(false) }
     var members by remember { mutableStateOf(false) }
+    var rttPanel by remember { mutableStateOf(false) }
     LaunchedEffect(dialpadRequested) {
         if (dialpadRequested) {
             dialpad = true
@@ -143,7 +154,7 @@ fun InCallScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .background(Palette.Ink)
+            .background(Palette.Call.Ink)
             .drawBehind {
                 // Miękka poświata za awatarem: zielona – dzwoni, niebieska – rozmowa, czerwona – koniec.
                 drawRect(
@@ -168,8 +179,30 @@ fun InCallScreen(
                     Spacer(Modifier.size(40.dp))
                 }
                 Spacer(Modifier.weight(1f))
+                if (shown.emergency) {
+                    Text(tr("Połączenie alarmowe"), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clip(RoundedCornerShape(50)).background(Palette.Record).padding(horizontal = 10.dp, vertical = 4.dp))
+                    Spacer(Modifier.width(6.dp))
+                }
+                // Jakość i droga połączenia: Wi-Fi Calling, dźwięk HD (VoLTE / VoWiFi).
+                listOfNotNull(
+                    tr("Wi-Fi").takeIf { shown.wifi },
+                    tr("HD").takeIf { shown.hd },
+                ).forEach { tag ->
+                    Text(
+                        tag,
+                        color = Palette.Call.TextDim,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .semantics { contentDescription = if (tag == tr("HD")) tr("Dźwięk HD") else tr("Połączenie przez Wi-Fi") }
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                }
                 shown.accountLabel?.let {
-                    Text(it, color = Palette.TextDim, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.08f)).padding(horizontal = 10.dp, vertical = 4.dp))
+                    Text(it, color = Palette.Call.TextDim, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.08f)).padding(horizontal = 10.dp, vertical = 4.dp))
                 }
                 Spacer(Modifier.weight(1f))
                 Spacer(Modifier.size(40.dp))
@@ -190,9 +223,9 @@ fun InCallScreen(
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text(o.title.ifBlank { tr("Numer prywatny") }, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(if (o.held) tr("Zawieszone · dotknij, aby wrócić") else stateText(o), fontSize = 11.sp, color = Palette.TextDim)
+                        Text(if (o.held) tr("Zawieszone · dotknij, aby wrócić") else stateText(o), fontSize = 11.sp, color = Palette.Call.TextDim)
                     }
-                    Icon(if (o.held) Icons.Rounded.PhonePaused else Icons.Rounded.PhoneInTalk, null, tint = Palette.TextDim)
+                    Icon(if (o.held) Icons.Rounded.PhonePaused else Icons.Rounded.PhoneInTalk, null, tint = Palette.Call.TextDim)
                 }
             }
 
@@ -217,6 +250,10 @@ fun InCallScreen(
                         onRoutes = { routes = true },
                         onAddCall = onAddCall,
                         onMembers = { members = true },
+                        onRtt = {
+                            if (!primary.rtt) CallManager.requestRtt(primary.call)
+                            rttPanel = true
+                        },
                     )
                     else -> Spacer(Modifier.height(140.dp))
                 }
@@ -244,9 +281,13 @@ fun InCallScreen(
                     }
                 }
             }
-            Text(tr("Wiadomość wyśle domyślna aplikacja SMS. Treści zmienisz w ustawieniach."), color = Palette.TextDim, fontSize = 12.sp)
+            Text(tr("Wiadomość wyśle domyślna aplikacja SMS. Treści zmienisz w ustawieniach."), color = Palette.Call.TextDim, fontSize = 12.sp)
         }
     }
+    if (rttPanel && primary != null && !primary.ended) {
+        RttPanel(primary) { rttPanel = false }
+    }
+    RttRequestDialog(onAccepted = { rttPanel = true })
     if (routes && audio != null) {
         AudioRouteDialog(audio) { routes = false }
     }
@@ -314,7 +355,7 @@ private fun CallerHeader(c: CallView, ended: Boolean, settings: AppSettings) {
             c.label?.let { add(it) }
             if (c.conference) add(tr("Konferencja · {0}", c.children))
         }.joinToString(" · ")
-        if (sub.isNotBlank()) Text(sub, fontSize = 15.sp, color = Palette.TextDim, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
+        if (sub.isNotBlank()) Text(sub, fontSize = 15.sp, color = Palette.Call.TextDim, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
         Spacer(Modifier.height(10.dp))
         if (ended) {
             val dur = if (c.connectTime > 0) PhoneText.duration((System.currentTimeMillis() - c.connectTime) / 1000) else null
@@ -344,7 +385,7 @@ private fun CallerHeader(c: CallView, ended: Boolean, settings: AppSettings) {
         } else if (c.held) {
             Text(tr("Zawieszone"), color = Palette.Hold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         } else {
-            Text(stateText(c), color = Palette.TextDim, fontSize = 15.sp)
+            Text(stateText(c), color = Palette.Call.TextDim, fontSize = 15.sp)
         }
     }
 }
@@ -387,7 +428,8 @@ private fun IncomingControls(c: CallView, others: List<CallView>, settings: AppS
             }
             PillButton(tr("Wiadomość"), primary = false, icon = Icons.Rounded.Sms, onClick = onReplies)
         }
-        if (settings.swipeToAnswer) {
+        // Z czytnikiem ekranu przesuwanie gałki jest niewygodne – zawsze dwa przyciski.
+        if (settings.swipeToAnswer && !rememberTouchExploration()) {
             AnswerSlider(onAnswer = { CallManager.answer(c.call) }, onDecline = { CallManager.reject(c.call) })
         } else {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Bottom) {
@@ -412,8 +454,22 @@ private fun BigButton(icon: ImageVector, label: String, color: Color, small: Boo
             Icon(icon, null, tint = Color.White, modifier = Modifier.size(if (small) 26.dp else 32.dp))
         }
         Spacer(Modifier.height(6.dp))
-        Text(label, fontSize = 12.sp, color = Palette.TextDim)
+        Text(label, fontSize = 12.sp, color = Palette.Call.TextDim, modifier = Modifier.clearAndSetSemantics {})
     }
+}
+
+/** Czy działa TalkBack (eksploracja dotykiem); śledzi włączanie i wyłączanie w trakcie. */
+@Composable
+private fun rememberTouchExploration(): Boolean {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val am = remember { context.getSystemService(android.view.accessibility.AccessibilityManager::class.java) }
+    var on by remember { mutableStateOf(am?.isTouchExplorationEnabled == true) }
+    androidx.compose.runtime.DisposableEffect(am) {
+        val l = android.view.accessibility.AccessibilityManager.TouchExplorationStateChangeListener { on = it }
+        am?.addTouchExplorationStateChangeListener(l)
+        onDispose { am?.removeTouchExplorationStateChangeListener(l) }
+    }
+    return on
 }
 
 /** Suwak odbierania: gałka na środku; przeciągnięcie do prawej krawędzi odbiera, do lewej – odrzuca. */
@@ -427,6 +483,14 @@ private fun AnswerSlider(onAnswer: () -> Unit, onDecline: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .height(68.dp)
+            .clearAndSetSemantics {
+                contentDescription = tr("Połączenie przychodzące. Przesuń w prawo, aby odebrać, w lewo, aby odrzucić")
+                onClick(label = tr("Odbierz")) { onAnswer(); true }
+                customActions = listOf(
+                    CustomAccessibilityAction(tr("Odbierz")) { onAnswer(); true },
+                    CustomAccessibilityAction(tr("Odrzuć")) { onDecline(); true },
+                )
+            }
             .clip(RoundedCornerShape(50))
             .background(Color.White.copy(alpha = 0.08f)),
         contentAlignment = Alignment.Center,
@@ -488,7 +552,7 @@ private fun AnswerSlider(onAnswer: () -> Unit, onDecline: () -> Unit) {
             Icon(
                 if (progress < -0.05f) Icons.Rounded.CallEnd else Icons.Rounded.Call,
                 tr("Odbierz lub odrzuć"),
-                tint = if (knobColor == Color.White) Palette.Ink else Color.White,
+                tint = if (knobColor == Color.White) Palette.Call.Ink else Color.White,
                 modifier = Modifier.size(30.dp),
             )
         }
@@ -512,6 +576,7 @@ private fun OngoingControls(
     onRoutes: () -> Unit,
     onAddCall: () -> Unit,
     onMembers: () -> Unit,
+    onRtt: () -> Unit,
 ) {
     val muted = audio?.isMuted == true
     val route = audio?.route ?: CallAudioState.ROUTE_EARPIECE
@@ -559,7 +624,12 @@ private fun OngoingControls(
                 }
             },
         )
-        buttons.chunked(3).forEach { row ->
+        val all = if (c.rttCapable || c.rtt) {
+            buttons + Toggle(Icons.Rounded.Keyboard, tr("Tekst RTT"), c.rtt, onClick = onRtt)
+        } else {
+            buttons
+        }
+        all.chunked(3).forEach { row ->
             Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                 row.forEach { t -> ToggleButton(t) }
             }
@@ -578,14 +648,110 @@ private fun OngoingControls(
     }
 }
 
+/** Rozmowa tekstowa w czasie rzeczywistym: litery idą do rozmówcy już w trakcie pisania. */
+@Composable
+private fun RttPanel(c: CallView, onClose: () -> Unit) {
+    val tick by CallManager.tick.collectAsState()
+    val lines = remember(tick, c.call) { CallManager.rttTranscript(c.call) }
+    var draft by remember(c.call) { mutableStateOf("") }
+    fun commit() {
+        if (draft.isBlank()) return
+        CallManager.sendRtt(c.call, "
+")
+        CallManager.rttCommitMine(c.call, draft)
+        draft = ""
+    }
+    DarkDialog(
+        tr("Rozmowa tekstowa (RTT)"),
+        onDismiss = onClose,
+        buttons = {
+            if (c.rtt) PillButton(tr("Wyłącz RTT"), primary = false) {
+                CallManager.stopRtt(c.call)
+                onClose()
+            }
+            PillButton(tr("Zamknij"), primary = false, onClick = onClose)
+        },
+    ) {
+        if (!c.rtt) {
+            Text(tr("Czekam, aż sieć i rozmówca włączą RTT…"), color = Palette.Call.TextDim, fontSize = 13.sp)
+        }
+        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+        LaunchedEffect(lines.size) { if (lines.isNotEmpty()) listState.animateScrollToItem(lines.lastIndex) }
+        androidx.compose.foundation.lazy.LazyColumn(
+            Modifier.fillMaxWidth().height(260.dp),
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            items(lines.size) { i ->
+                val l = lines[i]
+                Box(Modifier.fillMaxWidth(), contentAlignment = if (l.mine) Alignment.CenterEnd else Alignment.CenterStart) {
+                    Text(
+                        l.text.trimEnd('
+'),
+                        fontSize = 15.sp,
+                        color = if (l.mine) Palette.Call.Ink else Color.White,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (l.mine) Color.White else Color.White.copy(alpha = 0.1f))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                    )
+                }
+            }
+        }
+        DarkField(
+            value = draft,
+            onChange = { v ->
+                if (!c.rtt) return@DarkField
+                // Różnica względem poprzedniego tekstu: dopisane znaki albo backspace.
+                val common = draft.commonPrefixWith(v).length
+                val out = "".repeat(draft.length - common) + v.substring(common)
+                if (v.endsWith("
+")) {
+                    CallManager.sendRtt(c.call, out.dropLast(1))
+                    draft = v.dropLast(1)
+                    commit()
+                } else {
+                    CallManager.sendRtt(c.call, out)
+                    draft = v
+                }
+            },
+            label = tr("Pisz – rozmówca widzi każdą literę"),
+            singleLine = false,
+            trailing = {
+                GlassIconButton(Icons.AutoMirrored.Rounded.Send, tr("Wyślij"), size = 36.dp, enabled = c.rtt && draft.isNotBlank()) { commit() }
+            },
+        )
+    }
+}
+
+/** Rozmówca prosi o włączenie RTT. */
+@Composable
+private fun RttRequestDialog(onAccepted: () -> Unit) {
+    val tick by CallManager.tick.collectAsState()
+    remember(tick) { CallManager.rttRequest } ?: return
+    DarkDialog(
+        tr("Rozmowa tekstowa"),
+        onDismiss = { CallManager.answerRttRequest(false) },
+        buttons = {
+            PillButton(tr("Odrzuć"), primary = false) { CallManager.answerRttRequest(false) }
+            PillButton(tr("Włącz RTT")) {
+                CallManager.answerRttRequest(true)
+                onAccepted()
+            }
+        },
+    ) {
+        Text(tr("Rozmówca chce pisać w trakcie rozmowy (RTT). Głos nadal działa."), fontSize = 14.sp)
+    }
+}
+
 private class Toggle(val icon: ImageVector, val label: String, val on: Boolean, val enabled: Boolean = true, val onClick: () -> Unit)
 
 @Composable
 private fun ToggleButton(t: Toggle) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(92.dp)) {
-        GlassIconButton(t.icon, t.label, size = 64.dp, active = t.on, enabled = t.enabled, onClick = t.onClick)
+        GlassIconButton(t.icon, t.label, size = 64.dp, active = t.on, enabled = t.enabled, state = if (t.on) tr("włączone") else null, onClick = t.onClick)
         Spacer(Modifier.height(6.dp))
-        Text(t.label, fontSize = 12.sp, color = if (t.enabled) Palette.TextDim else Palette.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(t.label, fontSize = 12.sp, color = if (t.enabled) Palette.Call.TextDim else Palette.Call.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.clearAndSetSemantics {})
     }
 }
 
@@ -650,7 +816,7 @@ private fun InCallDialpad(c: CallView, settings: AppSettings, onClose: () -> Uni
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-            .background(Palette.PanelHigh)
+            .background(Palette.Call.Panel)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

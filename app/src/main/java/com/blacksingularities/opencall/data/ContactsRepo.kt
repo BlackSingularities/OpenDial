@@ -210,6 +210,25 @@ class ContactsRepo(private val context: Context) {
 
     fun delete(ids: Collection<Long>) {
         if (ids.isEmpty()) return
+        // Kontakty z karty SIM usuwamy też z samej karty – inaczej wróciłyby przy następnym odczycie karty.
+        runCatching {
+            val cards = sim.cards()
+            if (cards.isNotEmpty()) {
+                ids.forEach { id ->
+                    cr.query(RawContacts.CONTENT_URI, arrayOf(RawContacts._ID, RawContacts.ACCOUNT_TYPE, RawContacts.ACCOUNT_NAME), "${RawContacts.CONTACT_ID}=?", arrayOf(id.toString()), null)
+                        ?.use { c ->
+                            while (c.moveToNext()) {
+                                val type = c.getString(1)
+                                val name = c.getString(2)
+                                if (!sim.isSimAccount(type, name, cards)) continue
+                                val card = cards.firstOrNull { it.accountType == type && it.accountName == name } ?: cards.singleOrNull() ?: continue
+                                val (simName, simNumber) = simKeyOf(c.getLong(0))
+                                sim.delete(card, simName, simNumber)
+                            }
+                        }
+                }
+            }
+        }
         val ops = ids.map { ContentProviderOperation.newDelete(ContentUris.withAppendedId(Contacts.CONTENT_URI, it)).build() }
         cr.applyBatch(ContactsContract.AUTHORITY, ArrayList(ops))
     }
@@ -218,23 +237,79 @@ class ContactsRepo(private val context: Context) {
     fun accounts(): List<AccountRef> {
         val set = LinkedHashSet<AccountRef>()
         set.add(AccountRef(null, null))
+        val cards = sim.cards()
         cr.query(RawContacts.CONTENT_URI, arrayOf(RawContacts.ACCOUNT_TYPE, RawContacts.ACCOUNT_NAME), "${RawContacts.DELETED}=0", null, null)?.use { c ->
             while (c.moveToNext()) {
                 val type = c.getString(0)
                 val name = c.getString(1)
                 // Konta tylko do odczytu (np. komunikatory) pomijamy – nie przyjmą nowego kontaktu.
-                if (type != null && name != null && !type.contains("whatsapp") && !type.contains("telegram") && !type.contains("signal")) {
+                // Konta SIM też: pełny kontakt (e-maile, adresy, zdjęcie) się na kartę nie zmieści,
+                // więc karty dochodzą niżej jako osobne pozycje z zapisem przez SimRepo.
+                if (type != null && name != null && !type.contains("whatsapp") && !type.contains("telegram") && !type.contains("signal") &&
+                    !sim.isSimAccount(type, name, cards)
+                ) {
                     set.add(AccountRef(type, name))
                 }
             }
         }
+        cards.forEach { set.add(AccountRef(it.accountType, it.accountName, simSubId = it.subscriptionId, simSlot = it.slot)) }
         return set.toList()
+    }
+
+    val sim by lazy { SimRepo(context) }
+
+    /** Konto surowego kontaktu (typ, nazwa). */
+    private fun accountOf(rawId: Long): Pair<String?, String?>? =
+        cr.query(RawContacts.CONTENT_URI, arrayOf(RawContacts.ACCOUNT_TYPE, RawContacts.ACCOUNT_NAME), "${RawContacts._ID}=?", arrayOf(rawId.toString()), null)
+            ?.use { c -> if (c.moveToFirst()) c.getString(0) to c.getString(1) else null }
+
+    /** Nazwa i pierwszy numer surowego kontaktu – tak wygląda jego rekord na karcie SIM. */
+    private fun simKeyOf(rawId: Long): Pair<String, String> {
+        var name = ""
+        var number = ""
+        cr.query(
+            Data.CONTENT_URI, arrayOf(Data.MIMETYPE, Data.DATA1),
+            "${Data.RAW_CONTACT_ID}=? AND ${Data.MIMETYPE} IN (?,?)",
+            arrayOf(rawId.toString(), StructuredName.CONTENT_ITEM_TYPE, Phone.CONTENT_ITEM_TYPE), null,
+        )?.use { c ->
+            while (c.moveToNext()) {
+                val v = c.getString(1) ?: continue
+                if (c.getString(0) == StructuredName.CONTENT_ITEM_TYPE) name = v else if (number.isEmpty()) number = v
+            }
+        }
+        return name to number
+    }
+
+    /** Zapis kontaktu na kartę SIM: nazwa i pierwszy numer. Null – zapisano i potwierdzono na karcie. */
+    fun saveSim(d: ContactDraft): String? {
+        val acc = d.account ?: return tr("Nie wybrano karty SIM")
+        val card = sim.cards().firstOrNull { it.subscriptionId == acc.simSubId } ?: return tr("Karta SIM jest niedostępna")
+        val res = sim.save(card, d.simOriginal, d.displayName, d.phones.firstOrNull { it.value.isNotBlank() }?.value.orEmpty())
+        lookupCache.clear()
+        return res
     }
 
     /** Formularz edycji z istniejącego kontaktu (pierwszy surowy kontakt z zapisywalnego konta). */
     fun draft(id: Long): ContactDraft? {
         val d = details(id) ?: return null
         val rawId = d.rawContactIds.firstOrNull() ?: return null
+        // Kontakt z karty SIM: edycja tylko nazwy i numeru, zapis na kartę.
+        val cards = sim.cards()
+        d.rawContactIds.firstNotNullOfOrNull { r ->
+            val (type, name) = accountOf(r) ?: return@firstNotNullOfOrNull null
+            if (!sim.isSimAccount(type, name, cards)) return@firstNotNullOfOrNull null
+            val card = cards.firstOrNull { it.accountType == type && it.accountName == name } ?: cards.singleOrNull()
+                ?: return@firstNotNullOfOrNull null
+            val (simName, simNumber) = simKeyOf(r)
+            ContactDraft(
+                id = id,
+                rawContactId = r,
+                given = simName,
+                phones = listOf(DraftField(simNumber, Phone.TYPE_MOBILE)),
+                account = AccountRef(type, name, simSubId = card.subscriptionId, simSlot = card.slot),
+                simOriginal = simName to simNumber,
+            )
+        }?.let { return it }
         var draft = ContactDraft(id = id, rawContactId = rawId)
         cr.query(
             Data.CONTENT_URI,

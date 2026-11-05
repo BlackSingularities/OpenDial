@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Accessibility
+import androidx.compose.material.icons.rounded.Contrast
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.automirrored.rounded.CallMissed
 import androidx.compose.material.icons.automirrored.rounded.Sort
@@ -62,6 +64,7 @@ import com.blacksingularities.opencall.data.AppSettings
 import com.blacksingularities.opencall.data.NameOrder
 import com.blacksingularities.opencall.data.RecentTap
 import com.blacksingularities.opencall.data.StartTab
+import com.blacksingularities.opencall.data.ThemeMode
 import com.blacksingularities.opencall.i18n.AppLanguage
 import com.blacksingularities.opencall.i18n.tr
 import com.blacksingularities.opencall.ui.AppViewModel
@@ -110,6 +113,10 @@ fun SettingsScreen(vm: AppViewModel, onRequestRole: () -> Unit) {
             ActionRow(Icons.Rounded.Voicemail, tr("Poczta głosowa"), Dialer.voicemailNumber(vm.getApplication()) ?: tr("Przytrzymaj „1” na klawiaturze")) { vm.voicemail() }
             ActionRow(Icons.Rounded.PhoneInTalk, tr("Ustawienia połączeń operatora"), tr("Przekierowania, połączenia oczekujące, ID dzwoniącego")) {
                 vm.openIntent(Intent(android.telecom.TelecomManager.ACTION_SHOW_CALL_SETTINGS))
+            }
+            // Tryb TTY i RTT ustawia system (zależy od sieci i karty); dialer tylko otwiera ten ekran.
+            ActionRow(Icons.Rounded.Accessibility, tr("Ułatwienia dostępu w połączeniach"), tr("Tryb TTY, tekst w czasie rzeczywistym (RTT), aparaty słuchowe")) {
+                vm.openIntent(Intent(android.telecom.TelecomManager.ACTION_SHOW_CALL_ACCESSIBILITY_SETTINGS))
             }
         }
 
@@ -190,6 +197,14 @@ fun SettingsScreen(vm: AppViewModel, onRequestRole: () -> Unit) {
                 { when (it) { AppLanguage.SYSTEM -> tr("Systemowy"); AppLanguage.PL -> "Polski"; AppLanguage.EN -> "English" } },
                 short = { when (it) { AppLanguage.SYSTEM -> "Auto"; AppLanguage.PL -> "PL"; AppLanguage.EN -> "EN" } },
             ) { v -> set { it.copy(language = v) } }
+            CompactChoice(
+                Icons.Rounded.Contrast,
+                tr("Motyw"),
+                ThemeMode.entries,
+                s.theme,
+                { when (it) { ThemeMode.SYSTEM -> tr("Według systemu"); ThemeMode.DARK -> tr("Ciemny"); ThemeMode.LIGHT -> tr("Jasny") } },
+                short = { when (it) { ThemeMode.SYSTEM -> "Auto"; ThemeMode.DARK -> tr("Ciemny"); ThemeMode.LIGHT -> tr("Jasny") } },
+            ) { v -> set { it.copy(theme = v) } }
             ActionRow(Icons.Rounded.Home, tr("Ekran startowy"), startLabel(s.startTab)) { startPicker = true }
             SwitchRow(Icons.Rounded.Vibration, tr("Wibracja przycisków"), tr("Lekka wibracja przy dotknięciu i przytrzymaniu przycisków"), s.haptics) { v -> set { it.copy(haptics = v) } }
             ActionRow(Icons.Rounded.NotificationsActive, tr("Powiadomienia"), tr("Dźwięki i wygląd powiadomień o połączeniach")) {
@@ -224,8 +239,8 @@ fun SettingsScreen(vm: AppViewModel, onRequestRole: () -> Unit) {
             if (u is UpdateState.Downloading) {
                 LinearProgressIndicator(
                     progress = { u.progress },
-                    color = Color.White,
-                    trackColor = Color.White.copy(alpha = 0.12f),
+                    color = Palette.Fg,
+                    trackColor = Palette.Fg.copy(alpha = 0.12f),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp),
                 )
             }

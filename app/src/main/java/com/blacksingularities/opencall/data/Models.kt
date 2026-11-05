@@ -56,6 +56,8 @@ data class CallEntry(
     val hidden: Boolean,
     val isNew: Boolean,
     val video: Boolean,
+    /** Nagranie poczty głosowej (content://…) – gdy operator i system je pobrały. */
+    val voicemailUri: String? = null,
 )
 
 /** Kolejne połączenia z tym samym numerem tego samego dnia – jeden wiersz na liście „Ostatnie”. */
@@ -115,6 +117,8 @@ data class ContactDraft(
     val photo: ByteArray? = null,
     val photoChanged: Boolean = false,
     val account: AccountRef? = null,
+    /** Edytowany kontakt z karty SIM: jego dotychczasowa nazwa i numer (do odszukania rekordu). */
+    val simOriginal: Pair<String, String>? = null,
 ) {
     val displayName: String
         get() = listOf(prefix, given, middle, family, suffix).filter { it.isNotBlank() }.joinToString(" ").trim()
@@ -126,8 +130,16 @@ data class ContactDraft(
 data class DraftField(val value: String, val type: Int, val label: String? = null)
 
 /** Konto, do którego trafia nowy kontakt (null = pamięć telefonu). */
-data class AccountRef(val type: String?, val name: String?) {
-    val local: Boolean get() = type == null || name == null
+data class AccountRef(
+    val type: String?,
+    val name: String?,
+    /** Karta SIM (identyfikator subskrypcji) – zapis idzie wtedy przez [SimRepo], nie przez konto. */
+    val simSubId: Int? = null,
+    /** Numer gniazda karty (0, 1) – do etykiety „SIM 1”. */
+    val simSlot: Int = 0,
+) {
+    val local: Boolean get() = simSubId == null && (type == null || name == null)
+    val sim: Boolean get() = simSubId != null
 }
 
 /** Karta SIM / konto telefoniczne do wybierania numeru. */

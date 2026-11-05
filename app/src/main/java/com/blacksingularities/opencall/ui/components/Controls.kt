@@ -164,7 +164,7 @@ fun Group(title: String?, modifier: Modifier = Modifier, content: @Composable Co
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color.White.copy(alpha = 0.06f))
+                .background(Palette.Fg.copy(alpha = 0.06f))
                 .padding(vertical = 2.dp),
             content = content,
         )
@@ -175,11 +175,11 @@ fun Group(title: String?, modifier: Modifier = Modifier, content: @Composable Co
 @Composable
 fun SectionHeader(icon: ImageVector, title: String) {
     Row(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 2.dp, start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = Color.White, modifier = Modifier.size(18.dp))
+        Icon(icon, null, tint = Palette.Fg, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
-        Text(title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text(title, color = Palette.Fg, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.width(10.dp))
-        Box(Modifier.weight(1f).height(1.dp).background(Color.White.copy(alpha = 0.12f)))
+        Box(Modifier.weight(1f).height(1.dp).background(Palette.Fg.copy(alpha = 0.12f)))
     }
 }
 
@@ -207,7 +207,7 @@ fun SwitchRow(icon: ImageVector, title: String, subtitle: String?, value: Boolea
     ) {
         RowIcon(icon)
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-            Text(title, fontSize = 14.sp, color = if (enabled) Color.White else Palette.TextFaint)
+            Text(title, fontSize = 14.sp, color = if (enabled) Palette.Fg else Palette.TextFaint)
             if (subtitle != null) Text(subtitle, fontSize = 11.sp, color = Palette.TextDim, lineHeight = 14.sp)
         }
         Switch(
@@ -218,9 +218,9 @@ fun SwitchRow(icon: ImageVector, title: String, subtitle: String?, value: Boolea
             colors = SwitchDefaults.colors(
                 checkedTrackColor = Palette.Amber,
                 checkedThumbColor = Palette.Ink,
-                uncheckedTrackColor = Color.White.copy(alpha = 0.08f),
+                uncheckedTrackColor = Palette.Fg.copy(alpha = 0.08f),
                 uncheckedThumbColor = Palette.TextDim,
-                uncheckedBorderColor = Color.White.copy(alpha = 0.2f),
+                uncheckedBorderColor = Palette.Fg.copy(alpha = 0.2f),
             ),
         )
     }
@@ -249,7 +249,7 @@ fun <T> CompactChoice(
         Row(
             Modifier
                 .clip(RoundedCornerShape(50))
-                .background(Color.White.copy(alpha = 0.06f))
+                .background(Palette.Fg.copy(alpha = 0.06f))
                 .padding(2.dp),
         ) {
             options.forEach { o ->
@@ -257,7 +257,7 @@ fun <T> CompactChoice(
                 Box(
                     Modifier
                         .clip(RoundedCornerShape(50))
-                        .background(if (sel) Color.White else Color.Transparent)
+                        .background(if (sel) Palette.Fg else Color.Transparent)
                         .selectable(selected = sel, role = Role.RadioButton, onClick = { onSelect(o) })
                         .padding(horizontal = 9.dp, vertical = 5.dp),
                     contentAlignment = Alignment.Center,
@@ -307,7 +307,7 @@ fun ActionRow(
                 color = when {
                     !enabled -> Palette.TextFaint
                     danger -> Palette.Record
-                    else -> Color.White
+                    else -> Palette.Fg
                 },
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -333,16 +333,16 @@ fun PillButton(
     onClick: () -> Unit,
 ) {
     val bg = when {
-        !enabled -> Color.White.copy(alpha = 0.08f)
+        !enabled -> Palette.Fg.copy(alpha = 0.08f)
         danger -> Palette.Record
         primary -> Palette.Amber
-        else -> Color.White.copy(alpha = 0.1f)
+        else -> Palette.Fg.copy(alpha = 0.1f)
     }
     val fg = when {
         !enabled -> Palette.TextFaint
         danger -> Color.White
         primary -> Palette.Ink
-        else -> Color.White
+        else -> Palette.Fg
     }
     Row(
         modifier
@@ -380,7 +380,7 @@ fun DarkDialog(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Palette.Fg)
             Column(
                 Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -398,7 +398,7 @@ fun DarkDialog(
 fun ChoiceDialog(title: String, options: List<Pair<ImageVector, String>>, onDismiss: () -> Unit, subtitle: String? = null, onPick: (Int) -> Unit) {
     DarkDialog(title, onDismiss, buttons = { PillButton(tr("Anuluj"), primary = false, onClick = onDismiss) }) {
         if (subtitle != null) Text(subtitle, color = Palette.TextDim, fontSize = 13.sp)
-        Column(Modifier.clip(RoundedCornerShape(16.dp)).background(Color.White.copy(alpha = 0.06f))) {
+        Column(Modifier.clip(RoundedCornerShape(16.dp)).background(Palette.Fg.copy(alpha = 0.06f))) {
             options.forEachIndexed { i, (icon, label) ->
                 ActionRow(icon, label) { onPick(i) }
             }
@@ -432,13 +432,13 @@ fun DarkField(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Color.White,
-            unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
-            focusedLabelColor = Color.White,
+            focusedBorderColor = Palette.Fg,
+            unfocusedBorderColor = Palette.Fg.copy(alpha = 0.25f),
+            focusedLabelColor = Palette.Fg,
             unfocusedLabelColor = Palette.TextDim,
-            cursorColor = Color.White,
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
+            cursorColor = Palette.Fg,
+            focusedTextColor = Palette.Fg,
+            unfocusedTextColor = Palette.Fg,
         ),
     )
 }
@@ -457,15 +457,15 @@ fun TabChip(icon: ImageVector?, label: String, selected: Boolean, modifier: Modi
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
-            Icon(icon, null, tint = if (selected) Palette.Ink else Color.White, modifier = Modifier.size(if (compact) 18.dp else 16.dp))
+            Icon(icon, null, tint = if (selected) Palette.Ink else Palette.Fg, modifier = Modifier.size(if (compact) 18.dp else 16.dp))
             if (showLabel) Spacer(Modifier.width(6.dp))
         }
-        if (showLabel) Text(label, color = if (selected) Palette.Ink else Color.White, fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
+        if (showLabel) Text(label, color = if (selected) Palette.Ink else Palette.Fg, fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
         if (count != null && count > 0) {
             Spacer(Modifier.width(5.dp))
             Text(
                 count.toString(),
-                color = Color.White,
+                color = Palette.Fg,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Black,
                 modifier = Modifier.clip(RoundedCornerShape(50)).background(Palette.Record).padding(horizontal = 5.dp),
@@ -502,7 +502,7 @@ fun MessagePill(text: String?, modifier: Modifier = Modifier) {
             modifier = Modifier
                 .padding(horizontal = 24.dp)
                 .clip(RoundedCornerShape(50))
-                .background(Color.White)
+                .background(Palette.Fg)
                 .padding(horizontal = 16.dp, vertical = 10.dp),
         )
     }
@@ -512,11 +512,11 @@ fun MessagePill(text: String?, modifier: Modifier = Modifier) {
 @Composable
 fun EmptyState(icon: ImageVector, title: String, text: String, modifier: Modifier = Modifier, action: String? = null, onAction: () -> Unit = {}) {
     Column(modifier.fillMaxWidth().padding(vertical = 48.dp, horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(72.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.06f)), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(72.dp).clip(CircleShape).background(Palette.Fg.copy(alpha = 0.06f)), contentAlignment = Alignment.Center) {
             Icon(icon, null, tint = Palette.TextDim, modifier = Modifier.size(34.dp))
         }
         Spacer(Modifier.height(14.dp))
-        Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Palette.Fg)
         Spacer(Modifier.height(4.dp))
         Text(text, fontSize = 13.sp, color = Palette.TextDim, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         if (action != null) {

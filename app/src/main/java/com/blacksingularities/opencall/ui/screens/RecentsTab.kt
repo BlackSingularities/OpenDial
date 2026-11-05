@@ -45,6 +45,9 @@ import androidx.compose.material.icons.automirrored.rounded.Message
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.CallEnd
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Stop
+import com.blacksingularities.opencall.ui.VoicemailPlayer
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DeleteSweep
@@ -169,9 +172,9 @@ fun RecentsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions
                 val bucket = Format.bucket(g.first.date)
                 if (bucket != lastBucket) {
                     lastBucket = bucket
-                    item(key = "h_$bucket") { ListHeader(bucket) }
+                    item(key = "h_$bucket", contentType = "header") { ListHeader(bucket) }
                 }
-                item(key = g.key) {
+                item(key = g.key, contentType = "call") {
                     CallRow(
                         vm, g,
                         expanded = expanded == g.key,
@@ -237,7 +240,7 @@ private fun CallRow(vm: AppViewModel, g: CallGroup, expanded: Boolean, onTap: ()
         Modifier
             .padding(horizontal = 8.dp)
             .clip(RoundedCornerShape(18.dp))
-            .background(if (expanded) Color.White.copy(alpha = 0.07f) else Color.Transparent)
+            .background(if (expanded) Palette.Fg.copy(alpha = 0.07f) else Color.Transparent)
             .combinedClickable(onClick = onTap, onLongClick = onLong),
     ) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -251,7 +254,7 @@ private fun CallRow(vm: AppViewModel, g: CallGroup, expanded: Boolean, onTap: ()
                         title,
                         fontSize = 16.sp,
                         fontWeight = if (g.unseenMissed) FontWeight.Bold else FontWeight.SemiBold,
-                        color = if (missed) Palette.Record else Color.White,
+                        color = if (missed) Palette.Record else Palette.Fg,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
@@ -289,6 +292,13 @@ private fun CallRow(vm: AppViewModel, g: CallGroup, expanded: Boolean, onTap: ()
                     }
                 }
                 Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    g.entries.firstOrNull { it.voicemailUri != null }?.let { v ->
+                        val playing = VoicemailPlayer.playingId == v.id
+                        QuickAction(
+                            if (playing) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
+                            if (playing) tr("Zatrzymaj") else tr("Odsłuchaj"),
+                        ) { VoicemailPlayer.toggle(vm.getApplication(), v.id, v.voicemailUri.orEmpty()) }
+                    }
                     if (!e.hidden) {
                         QuickAction(Icons.AutoMirrored.Rounded.Message, tr("SMS")) { vm.sms(e.number) }
                         if (vm.contactFor(e.number) == null) QuickAction(Icons.Rounded.PersonAdd, tr("Dodaj")) { vm.newContact(e.number) }
@@ -307,11 +317,11 @@ private fun QuickAction(icon: ImageVector, label: String, onClick: () -> Unit) {
         Modifier
             .reactive(label, pressScale = 0.94f, onClick = onClick)
             .clip(RoundedCornerShape(50))
-            .background(Color.White.copy(alpha = 0.09f))
+            .background(Palette.Fg.copy(alpha = 0.09f))
             .padding(horizontal = 12.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, null, tint = Color.White, modifier = Modifier.size(16.dp))
+        Icon(icon, null, tint = Palette.Fg, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(5.dp))
         Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }
@@ -328,7 +338,7 @@ private fun CallMenu(vm: AppViewModel, g: CallGroup, onDismiss: () -> Unit) {
         onDismiss = onDismiss,
         buttons = { PillButton(tr("Zamknij"), primary = false, onClick = onDismiss) },
     ) {
-        Column(Modifier.clip(RoundedCornerShape(16.dp)).background(Color.White.copy(alpha = 0.06f))) {
+        Column(Modifier.clip(RoundedCornerShape(16.dp)).background(Palette.Fg.copy(alpha = 0.06f))) {
             fun go(f: () -> Unit) {
                 onDismiss()
                 f()

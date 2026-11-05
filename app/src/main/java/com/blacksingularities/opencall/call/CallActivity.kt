@@ -31,6 +31,11 @@ class CallActivity : ComponentActivity() {
     private var proximity: PowerManager.WakeLock? = null
     private var showDialpad by mutableStateOf(false)
 
+    override fun onResume() {
+        super.onResume()
+        com.blacksingularities.opencall.ui.theme.ThemeState.dark = true
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setShowWhenLocked(true)
@@ -40,6 +45,8 @@ class CallActivity : ComponentActivity() {
         val settings = SettingsStore(this).load()
         I18n.apply(settings.language)
         handle(intent)
+        // Ekran rozmowy jest zawsze ciemny, także przy jasnym motywie aplikacji.
+        com.blacksingularities.opencall.ui.theme.ThemeState.dark = true
         setContent {
             OpenDialTheme {
                 GlassScope(haptics = settings.haptics) {

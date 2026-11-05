@@ -1,5 +1,18 @@
 # Zmiany
 
+## 1.0.0
+
+- Numery alarmowe (112, 997 i inne znane systemowi): dzwonią od razu, bez okna „Zadzwonić?” i bez wyboru karty SIM, także na prośbę innych aplikacji. Przez 30 minut po takim połączeniu żadna blokada, wyciszanie ani asystent AI nie zatrzyma oddzwaniających służb. Ekran rozmowy oznacza połączenie alarmowe.
+- Kody `*#06#` (IMEI) i `*#07#` (SAR) oraz kody serwisowe `*#*#…#*#*` działają zaraz po wpisaniu ostatniego znaku.
+- TalkBack i Switch Access obsługują wszystkie przyciski aplikacji (wcześniej czytały tylko ich nazwy). Przy włączonym TalkBacku połączenie odbiera się przyciskami zamiast gałki, a gałka ma akcje „Odbierz” i „Odrzuć”.
+- Rozmowa tekstowa w czasie rzeczywistym (RTT), gdy wspiera ją sieć: przycisk „Tekst RTT” w trakcie rozmowy, okno prośby rozmówcy o RTT. W Ustawieniach → Połączenia jest skrót do trybu TTY i ułatwień dostępu w połączeniach.
+- Jasny motyw i opcja „Według systemu” (Ustawienia → Ogólne → Motyw). Ekran rozmowy zostaje ciemny.
+- Skróty z ikony aplikacji (przytrzymanie): „Nowy kontakt” i do trzech ulubionych osób. Nowy widżet „Ulubione” na ekran główny – dotknięcie dzwoni.
+- Odsłuchiwanie poczty głosowej w „Ostatnich” (przycisk „Odsłuchaj”), gdy operator dostarcza nagrania do telefonu.
+- Ekran rozmowy pokazuje, czy połączenie idzie przez Wi-Fi i czy ma dźwięk HD (VoLTE / VoWiFi).
+- Szybsza praca z dużą książką adresową: zmiana w historii nie wczytuje od nowa wszystkich kontaktów (i odwrotnie), powrót do aplikacji nie przeładowuje list, a szukanie kontaktu po numerze korzysta z indeksu.
+- Kontakty na karcie SIM (Android 12+): w „Zapisz w” jest osobna pozycja dla każdej karty z uproszczonym formularzem (nazwa i numer) i licznikami miejsca. Zapis, edycja i usuwanie trafiają na samą kartę i są sprawdzane odczytem z karty. Wcześniej pełny kontakt zapisany do konta SIM nie mieścił się na karcie i znikał. Import vCard i nowe kontakty nie wybierają już karty SIM domyślnie.
+
 ## 0.4.5
 
 - Bez żadnych wzmianek o GitHubie w aplikacji: nowy adres serwera aktualizacji, komunikaty błędów bez nazw zewnętrznych serwerów.

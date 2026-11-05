@@ -133,6 +133,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     var pendingCall by mutableStateOf<PendingCall?>(null)
 
+    /** Trwa zapis na kartę SIM (z odczytem kontrolnym) – przycisk „Zapisz” jest wtedy wyłączony. */
+    var simSaving by mutableStateOf(false)
+        private set
+
     /** Cyfry na klawiaturze – przetrwają zmianę zakładki. */
     var dialed by mutableStateOf("")
 
@@ -145,20 +149,40 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private var lastUpdateCheck = 0L
 
     private var reloadJob: Job? = null
-    private val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
-        override fun onChange(selfChange: Boolean) = scheduleReload()
+    // Osobne obserwatory: zmiana w rejestrze połączeń nie wczytuje od nowa tysięcy kontaktów i odwrotnie.
+    private var dirtyContacts = false
+    private var dirtyLog = false
+    private val contactsObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) {
+            dirtyContacts = true
+            scheduleReload()
+        }
     }
+    private val logObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) {
+            dirtyLog = true
+            scheduleReload()
+        }
+    }
+
+    /** Ostatnio wczytany rejestr bez nazw z kontaktów – do ponownego podpięcia po zmianie kontaktów. */
+    private var rawCalls: List<CallEntry> = emptyList()
+
+    /** Numer (klucz [PhoneText.key]) → kontakt; zamiast przeszukiwania całej listy przy każdym wierszu. */
+    private var contactIndex: Map<String, Contact> = emptyMap()
 
     init {
         I18n.apply(settings.language)
         runCatching {
-            ctx.contentResolver.registerContentObserver(ContactsContract.Contacts.CONTENT_URI, true, observer)
-            ctx.contentResolver.registerContentObserver(CallLog.Calls.CONTENT_URI, true, observer)
+            ctx.contentResolver.registerContentObserver(ContactsContract.Contacts.CONTENT_URI, true, contactsObserver)
+            ctx.contentResolver.registerContentObserver(CallLog.Calls.CONTENT_URI, true, logObserver)
         }
     }
 
     override fun onCleared() {
-        runCatching { ctx.contentResolver.unregisterContentObserver(observer) }
+        VoicemailPlayer.stop()
+        runCatching { ctx.contentResolver.unregisterContentObserver(contactsObserver) }
+        runCatching { ctx.contentResolver.unregisterContentObserver(logObserver) }
         super.onCleared()
     }
 
@@ -351,20 +375,44 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         reloadJob?.cancel()
         reloadJob = viewModelScope.launch {
             delay(400)
-            reload()
+            val c = dirtyContacts
+            val l = dirtyLog
+            dirtyContacts = false
+            dirtyLog = false
+            reload(contactsToo = c || !loaded, logToo = l || !loaded)
         }
     }
 
-    fun reload() {
+    /** Po powrocie do aplikacji: pełne wczytanie tylko przy zmianie uprawnień lub roli (resztę łapią obserwatory). */
+    fun refreshOnResume() {
+        val before = listOf(isDefaultDialer, hasContacts, hasCallLog, hasPhone)
+        refreshPermissions()
+        if (!loaded || before != listOf(isDefaultDialer, hasContacts, hasCallLog, hasPhone)) reload()
+    }
+
+    fun reload(contactsToo: Boolean = true, logToo: Boolean = true) {
         refreshPermissions()
         viewModelScope.launch {
             val s = settings
-            val c = if (hasContacts) withContext(Dispatchers.IO) { runCatching { contactsRepo.loadAll(s.nameOrder) }.getOrDefault(emptyList()) } else emptyList()
-            val l = if (hasCallLog) withContext(Dispatchers.IO) { runCatching { callLogRepo.load() }.getOrDefault(emptyList()) } else emptyList()
+            val c = when {
+                !hasContacts -> emptyList()
+                contactsToo || !loaded -> withContext(Dispatchers.IO) { runCatching { contactsRepo.loadAll(s.nameOrder) }.getOrDefault(emptyList()) }
+                else -> contacts
+            }
+            val l = when {
+                !hasCallLog -> emptyList()
+                logToo || !loaded -> withContext(Dispatchers.IO) { runCatching { callLogRepo.load() }.getOrDefault(emptyList()) }
+                else -> rawCalls
+            }
+            rawCalls = l
+            if (c !== contacts) contactIndex = withContext(Dispatchers.Default) { indexContacts(c) }
             // Nazwy z bieżących kontaktów – CACHED_NAME w rejestrze bywa nieaktualny.
-            val named = withContext(Dispatchers.Default) { attachNames(l, c) }
+            val index = contactIndex
+            val named = withContext(Dispatchers.Default) { attachNames(l, index) }
             contacts = c
             calls = named
+            // Skróty z ikony i widżet ulubionych – tylko gdy zmieniły się kontakty.
+            if (contactsToo) withContext(Dispatchers.IO) { runCatching { com.blacksingularities.opencall.launcher.Launcher.update(ctx, c) } }
             groups = withContext(Dispatchers.Default) { PhoneText.group(named, s.groupCalls) }
             unseenMissed = if (hasCallLog) withContext(Dispatchers.IO) { callLogRepo.unseenMissed() } else 0
             blocked = withContext(Dispatchers.IO) { blockRepo.list() }
@@ -374,10 +422,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun attachNames(log: List<CallEntry>, contacts: List<Contact>): List<CallEntry> {
-        if (contacts.isEmpty()) return log
-        val byKey = HashMap<String, Contact>()
-        contacts.forEach { c -> c.numbers.forEach { n -> byKey.putIfAbsent(PhoneText.key(n.number), c) } }
+    private fun indexContacts(contacts: List<Contact>): Map<String, Contact> {
+        val byKey = HashMap<String, Contact>(contacts.size * 2)
+        contacts.forEach { c -> c.numbers.forEach { n -> PhoneText.key(n.number).takeIf { it.isNotEmpty() }?.let { byKey.putIfAbsent(it, c) } } }
+        return byKey
+    }
+
+    private fun attachNames(log: List<CallEntry>, byKey: Map<String, Contact>): List<CallEntry> {
+        if (byKey.isEmpty()) return log
         return log.map { e ->
             val c = if (e.hidden) null else byKey[PhoneText.key(e.number)]
             if (c != null) e.copy(name = c.name, photoUri = c.photoUri ?: e.photoUri) else e
@@ -387,7 +439,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun contactFor(number: String): Contact? {
         val k = PhoneText.key(number)
         if (k.isEmpty()) return null
-        return contacts.firstOrNull { c -> c.numbers.any { PhoneText.key(it.number) == k } }
+        return contactIndex[k]
     }
 
     fun markMissedSeen() {
@@ -406,8 +458,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun call(number: String, name: String? = null, simId: String? = null) {
         val n = number.trim()
         if (n.isEmpty()) return
-        if (Dialer.handleSecretCode(ctx, n)) {
+        if (Dialer.handleSecretCode(ctx, n) || deviceCode(n)) {
             dialed = ""
+            return
+        }
+        if (Dialer.isEmergency(ctx, n)) {
+            // Bez pytań i bez wyboru karty: liczy się każda sekunda.
+            pendingCall = null
+            place(n, null)
             return
         }
         val needsSim = simId == null && sims.size > 1 && settings.defaultSim == null
@@ -418,6 +476,36 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         pendingCall = null
         place(n, simId ?: settings.defaultSim)
+    }
+
+    /** Okno informacyjne (IMEI itp.): tytuł i treść. */
+    var infoDialog by mutableStateOf<Pair<String, String>?>(null)
+
+    /** Kody obsługiwane przez sam dialer: „*#06#” – IMEI, „*#07#” – SAR. */
+    fun deviceCode(number: String): Boolean = when (number.trim()) {
+        "*#06#" -> {
+            val ids = Dialer.deviceIds(ctx)
+            if (ids.isEmpty()) {
+                // Android 10+ nie pokazuje IMEI zwykłym aplikacjom – jest w „Informacjach o telefonie”.
+                toast(tr("IMEI znajdziesz w Informacjach o telefonie"))
+                openIntent(Intent(android.provider.Settings.ACTION_DEVICE_INFO_SETTINGS))
+            } else {
+                infoDialog = tr("IMEI") to ids.mapIndexed { i, id -> if (ids.size > 1) "SIM ${i + 1}: $id" else id }.joinToString("
+")
+            }
+            true
+        }
+        "*#07#" -> {
+            toast(tr("Wartości SAR są w Informacjach o telefonie → Informacje prawne"))
+            openIntent(Intent(android.provider.Settings.ACTION_DEVICE_INFO_SETTINGS))
+            true
+        }
+        else -> false
+    }
+
+    fun instantCode() {
+        val n = dialed
+        if (Dialer.handleSecretCode(ctx, n) || deviceCode(n)) dialed = ""
     }
 
     fun confirmPending(simId: String?) {
@@ -508,6 +596,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun saveContact(d: ContactDraft, onSaved: (Long?) -> Unit) {
         viewModelScope.launch {
+            if (d.account?.sim == true) {
+                // Karta SIM: zapis i odczyt kontrolny trwają chwilę; formularz zostaje otwarty przy błędzie.
+                simSaving = true
+                val error = withContext(Dispatchers.IO) { runCatching { contactsRepo.saveSim(d) }.getOrElse { tr("Karta SIM odrzuciła zapis") } }
+                simSaving = false
+                if (error != null) {
+                    toast(error)
+                    return@launch
+                }
+                toast(tr("Zapisano na karcie SIM"))
+                reload()
+                onSaved(d.id)
+                return@launch
+            }
             val id = withContext(Dispatchers.IO) { runCatching { contactsRepo.save(d) }.getOrNull() }
             if (id == null && d.id == null) toast(tr("Nie udało się zapisać kontaktu")) else toast(tr("Zapisano"))
             reload()
@@ -524,7 +626,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     given = parts.firstOrNull().orEmpty(),
                     family = parts.drop(1).joinToString(" "),
                     phones = listOf(DraftField(number.orEmpty(), ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE)),
-                    account = accounts.firstOrNull { !it.local } ?: accounts.firstOrNull(),
+                    // Domyślnie konto synchronizowane, nigdy karta SIM (ta mieści tylko nazwę i numer).
+                    account = accounts.firstOrNull { !it.local && !it.sim } ?: accounts.firstOrNull(),
                 ),
             ),
         )
@@ -612,7 +715,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val n = withContext(Dispatchers.IO) {
                 runCatching {
                     val text = ctx.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } ?: ""
-                    val account = contactsRepo.accounts().firstOrNull { !it.local } ?: contactsRepo.accounts().firstOrNull()
+                    val accounts = contactsRepo.accounts()
+                    val account = accounts.firstOrNull { !it.local && !it.sim } ?: accounts.firstOrNull()
                     val list = VCard.parse(text)
                     // Pomijamy kontakty, które już są (ta sama nazwa i numer).
                     val existing = contacts.flatMap { c -> c.numbers.map { PhoneText.key(it.number) + "|" + c.searchName } }.toHashSet()

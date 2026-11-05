@@ -140,7 +140,7 @@ private fun Step(done: Boolean, title: String, subtitle: String) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         RowIcon(if (done) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked, if (done) Palette.Answer else Palette.TextDim)
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-            Text(title, fontSize = 14.sp, color = Color.White)
+            Text(title, fontSize = 14.sp, color = Palette.Fg)
             Text(subtitle, fontSize = 11.sp, color = Palette.TextDim, lineHeight = 14.sp)
         }
     }
@@ -430,7 +430,7 @@ private fun RecordCard(vm: AppViewModel, r: AiRecord) {
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(Color.White.copy(alpha = 0.06f))
+            .background(Palette.Fg.copy(alpha = 0.06f))
             .clickable { open = !open }
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -438,11 +438,11 @@ private fun RecordCard(vm: AppViewModel, r: AiRecord) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(8.dp).clip(CircleShape).background(verdictColor(r)))
             Spacer(Modifier.width(8.dp))
-            Text(who, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color.White, modifier = Modifier.weight(1f), maxLines = 1)
+            Text(who, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Palette.Fg, modifier = Modifier.weight(1f), maxLines = 1)
             Text(Format.relative(r.at), fontSize = 11.sp, color = Palette.TextDim)
         }
         Text(verdictLabel(r), fontSize = 11.sp, color = verdictColor(r), fontWeight = FontWeight.SemiBold)
-        r.summary?.let { Text(it, fontSize = 13.sp, color = Color.White, lineHeight = 18.sp) }
+        r.summary?.let { Text(it, fontSize = 13.sp, color = Palette.Fg, lineHeight = 18.sp) }
         if (open) {
             if (r.caller != null && r.number.isNotBlank()) Text(PhoneText.pretty(r.number), fontSize = 12.sp, color = Palette.TextDim)
             r.transcript?.let { Text(it, fontSize = 12.sp, color = Palette.TextDim, lineHeight = 17.sp, modifier = Modifier.padding(top = 4.dp)) }

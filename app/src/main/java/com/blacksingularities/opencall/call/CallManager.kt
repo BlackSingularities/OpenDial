@@ -44,6 +44,16 @@ data class CallView(
     val hidden: Boolean,
     val accountLabel: String?,
     val disconnect: DisconnectCause?,
+    /** Trwa rozmowa tekstowa w czasie rzeczywistym (RTT). */
+    val rtt: Boolean = false,
+    /** Sieć i karta pozwalają włączyć RTT. */
+    val rttCapable: Boolean = false,
+    /** Połączenie alarmowe – ekran rozmowy to zaznacza. */
+    val emergency: Boolean = false,
+    /** Połączenie przez Wi-Fi (Wi-Fi Calling). */
+    val wifi: Boolean = false,
+    /** Dźwięk HD (zwykle VoLTE lub VoWiFi). */
+    val hd: Boolean = false,
 ) {
     val title: String get() = name ?: number.ifBlank { "" }
     val ringing: Boolean get() = state == Call.STATE_RINGING
@@ -98,6 +108,101 @@ object CallManager {
         override fun onParentChanged(call: Call, parent: Call?) = changed()
         override fun onConferenceableCallsChanged(call: Call, conferenceableCalls: MutableList<Call>) = changed()
         override fun onCallDestroyed(call: Call) = changed()
+
+        override fun onRttStatusChanged(call: Call, enabled: Boolean, rttCall: Call.RttCall?) {
+            if (enabled && rttCall != null) startRttReader(call, rttCall)
+            changed()
+        }
+        override fun onRttRequest(call: Call, id: Int) {
+            rttRequest = call to id
+            changed()
+        }
+        override fun onRttInitiationFailure(call: Call, reason: Int) {
+            appContext?.let { android.widget.Toast.makeText(it, tr("Nie udało się włączyć RTT"), android.widget.Toast.LENGTH_SHORT).show() }
+            changed()
+        }
+        override fun onRttModeChanged(call: Call, mode: Int) = changed()
+    }
+
+    // ---- RTT (tekst w czasie rzeczywistym) ---------------------------------------------------
+
+    /** Wiersz rozmowy tekstowej: [mine] – wpisany przeze mnie. */
+    data class RttLine(val mine: Boolean, val text: String)
+
+    private val rttLines = ConcurrentHashMap<Call, MutableList<RttLine>>()
+    private val rttReaders = ConcurrentHashMap<Call, Thread>()
+
+    /** Prośba rozmówcy o RTT czekająca na odpowiedź (połączenie i identyfikator prośby). */
+    var rttRequest: Pair<Call, Int>? = null
+        private set
+
+    fun rttTranscript(call: Call): List<RttLine> = rttLines[call]?.let { synchronized(it) { it.toList() } }.orEmpty()
+
+    fun requestRtt(call: Call) = runCatching { call.sendRttRequest() }
+
+    fun stopRtt(call: Call) = runCatching { call.stopRtt() }
+
+    fun answerRttRequest(accept: Boolean) {
+        val (call, id) = rttRequest ?: return
+        rttRequest = null
+        runCatching { call.respondToRttRequest(id, accept) }
+        changed()
+    }
+
+    /** Wysyła znaki od razu, jak w RTT: dopisane litery albo „” za każdy skasowany znak. */
+    fun sendRtt(call: Call, text: String) {
+        if (text.isEmpty()) return
+        val rtt = call.rttCall ?: return
+        scope.launch(Dispatchers.IO) { runCatching { rtt.write(text) } }
+    }
+
+    /** Zapisuje moją wypowiedź w historii (wysyłaną po kawałku przez [sendRtt]). */
+    fun rttCommitMine(call: Call, line: String) {
+        if (line.isBlank()) return
+        appendRtt(call, mine = true, text = line, newLine = true)
+    }
+
+    private fun appendRtt(call: Call, mine: Boolean, text: String, newLine: Boolean) {
+        val list = rttLines.getOrPut(call) { java.util.Collections.synchronizedList(ArrayList()) }
+        synchronized(list) {
+            var rest = text
+            while (rest.isNotEmpty()) {
+                val last = list.lastOrNull()
+                val cut = rest.indexOf('
+')
+                val chunk = if (cut >= 0) rest.substring(0, cut) else rest
+                if (!newLine && last != null && last.mine == mine && !last.text.endsWith("
+")) {
+                    // Backspace z drugiej strony kasuje ostatni znak.
+                    var t = last.text
+                    chunk.forEach { ch -> t = if (ch == '') t.dropLast(1) else t + ch }
+                    list[list.lastIndex] = last.copy(text = t)
+                } else {
+                    list.add(RttLine(mine, chunk.filter { it != '' }))
+                }
+                if (cut >= 0) {
+                    list[list.lastIndex] = list.last().let { it.copy(text = it.text + "
+") }
+                    rest = rest.substring(cut + 1)
+                } else {
+                    rest = ""
+                }
+            }
+        }
+        scope.launch { changed() }
+    }
+
+    private fun startRttReader(call: Call, rtt: Call.RttCall) {
+        if (rttReaders[call]?.isAlive == true) return
+        val t = Thread {
+            while (true) {
+                val text = runCatching { rtt.read() }.getOrNull() ?: break
+                appendRtt(call, mine = false, text = text, newLine = false)
+            }
+            rttReaders.remove(call)
+        }.apply { isDaemon = true; name = "rtt-reader" }
+        rttReaders[call] = t
+        t.start()
     }
 
     fun attach(context: Context) {
@@ -111,6 +216,7 @@ object CallManager {
         readAgent(context, numberOf(call))
         calls.add(call)
         call.registerCallback(callback)
+        call.rttCall?.let { startRttReader(call, it) }
         resolveCaller(context, numberOf(call))
         if (call.details.state == Call.STATE_ACTIVE) wasActive.add(call)
         if (calls.size == 1) dtmfHistory = ""
@@ -121,6 +227,9 @@ object CallManager {
         call.unregisterCallback(callback)
         calls.remove(call)
         wasActive.remove(call)
+        rttLines.remove(call)
+        rttReaders.remove(call)?.interrupt()
+        if (rttRequest?.first == call) rttRequest = null
         changed()
     }
 
@@ -186,7 +295,28 @@ object CallManager {
             hidden = hidden,
             accountLabel = account,
             disconnect = d.disconnectCause,
+            wifi = d.hasProperty(Call.Details.PROPERTY_WIFI),
+            hd = d.hasProperty(Call.Details.PROPERTY_HIGH_DEF_AUDIO),
+            rtt = call.isRttActive,
+            rttCapable = d.hasProperty(Call.Details.PROPERTY_RTT) || rttSupported(d.accountHandle),
+            emergency = d.hasProperty(Call.Details.PROPERTY_EMERGENCY_CALLBACK_MODE) ||
+                (d.callDirection == Call.Details.DIRECTION_OUTGOING && appContext?.let { Dialer.isEmergency(it, number) } == true),
         )
+    }
+
+    private val rttAccounts = ConcurrentHashMap<String, Boolean>()
+
+    /** Czy konto telefoniczne (karta) obsługuje RTT – wynik zapamiętywany, bo UI pyta przy każdej zmianie. */
+    @SuppressLint("MissingPermission")
+    private fun rttSupported(handle: android.telecom.PhoneAccountHandle?): Boolean {
+        val ctx = appContext ?: return false
+        handle ?: return false
+        return rttAccounts.getOrPut(handle.id) {
+            runCatching {
+                ctx.getSystemService(android.telecom.TelecomManager::class.java)?.getPhoneAccount(handle)
+                    ?.hasCapabilities(android.telecom.PhoneAccount.CAPABILITY_RTT) == true
+            }.getOrDefault(false)
+        }
     }
 
     /** Połączenia najwyższego poziomu (uczestnicy konferencji są w niej ukryci). */

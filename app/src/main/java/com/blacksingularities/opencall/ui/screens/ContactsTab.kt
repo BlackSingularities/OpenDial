@@ -238,9 +238,9 @@ fun ContactsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermission
                     val l = PhoneText.indexLetter(c.name)
                     if (l != last) {
                         last = l
-                        item(key = "h_$l", span = { GridItemSpan(maxLineSpan) }) { ListHeader(l.toString(), Modifier.animateItem()) }
+                        item(key = "h_$l", span = { GridItemSpan(maxLineSpan) }, contentType = "header") { ListHeader(l.toString(), Modifier.animateItem()) }
                     }
-                    item(key = c.id) {
+                    item(key = c.id, contentType = "contact") {
                         val onClick: () -> Unit = {
                             if (selecting) {
                                 selection = if (c.id in selection) selection - c.id else selection + c.id
@@ -305,7 +305,7 @@ fun ContactRow(
             .padding(horizontal = 8.dp)
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(if (selected) Color.White.copy(alpha = 0.12f) else Color.Transparent)
+            .background(if (selected) Palette.Fg.copy(alpha = 0.12f) else Color.Transparent)
             .combinedClickable(onClick = onClick, onLongClick = onLong)
             .padding(horizontal = 10.dp, vertical = 7.dp * scale.coerceAtMost(1.3f)),
         verticalAlignment = Alignment.CenterVertically,
@@ -314,7 +314,7 @@ fun ContactRow(
             Icon(
                 if (selected) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
                 null,
-                tint = if (selected) Color.White else Palette.TextFaint,
+                tint = if (selected) Palette.Fg else Palette.TextFaint,
                 modifier = Modifier.size(22.dp),
             )
             Spacer(Modifier.width(10.dp))
@@ -407,7 +407,7 @@ private fun ContactTile(
         modifier
             .padding(4.dp)
             .clip(RoundedCornerShape(if (columns == 2) 24.dp else 18.dp))
-            .background(if (selected) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.04f))
+            .background(if (selected) Palette.Fg.copy(alpha = 0.14f) else Palette.Fg.copy(alpha = 0.04f))
             .combinedClickable(onClick = onClick, onLongClick = onLong)
             .padding(horizontal = 6.dp, vertical = 10.dp),
     ) {
@@ -419,7 +419,7 @@ private fun ContactTile(
                     Icon(
                         if (selected) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
                         null,
-                        tint = if (selected) Color.White else Palette.TextFaint,
+                        tint = if (selected) Palette.Fg else Palette.TextFaint,
                         modifier = Modifier.align(Alignment.TopEnd).size(if (columns == 4) 18.dp else 24.dp),
                     )
                 } else if (c.starred) {
@@ -477,7 +477,7 @@ private fun AlphabetBar(letters: List<Char>, modifier: Modifier, onLetter: (Char
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             letters.forEach { l ->
-                Text(l.toString(), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (l == active) Color.White else Palette.TextDim)
+                Text(l.toString(), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (l == active) Palette.Fg else Palette.TextDim)
             }
         }
         active?.let { l ->
@@ -487,7 +487,7 @@ private fun AlphabetBar(letters: List<Char>, modifier: Modifier, onLetter: (Char
                     .padding(end = 40.dp)
                     .size(56.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color.White),
+                    .background(Palette.Fg),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(l.toString(), color = Palette.Ink, fontSize = 28.sp, fontWeight = FontWeight.Black)

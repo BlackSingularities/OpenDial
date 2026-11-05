@@ -167,6 +167,8 @@ fun DialerPanel(vm: AppViewModel, onCollapse: () -> Unit) {
             tone?.let { tones?.startTone(it, 120) }
         }
         vm.dialed = vm.dialed + k
+        // Kody serwisowe działają od razu po wpisaniu ostatniego znaku, bez przycisku połączenia.
+        if (k == '#' || k == '*') vm.instantCode()
     }
 
     // Czarne tło jak dolny pasek – klawiatura przechodzi w niego bez szwu.
@@ -210,7 +212,7 @@ fun DialerPanel(vm: AppViewModel, onCollapse: () -> Unit) {
                     digits.length > 12 -> 30.sp
                     else -> 36.sp
                 },
-                color = if (digits.isEmpty()) Palette.TextFaint else Color.White,
+                color = if (digits.isEmpty()) Palette.TextFaint else Palette.Fg,
                 fontWeight = FontWeight.Normal,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
@@ -296,11 +298,11 @@ private fun SmallPill(icon: ImageVector, label: String, onClick: () -> Unit) {
         Modifier
             .reactive(label, pressScale = 0.94f, onClick = onClick)
             .clip(RoundedCornerShape(50))
-            .background(Color.White.copy(alpha = 0.09f))
+            .background(Palette.Fg.copy(alpha = 0.09f))
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, null, tint = Color.White, modifier = Modifier.size(15.dp))
+        Icon(icon, null, tint = Palette.Fg, modifier = Modifier.size(15.dp))
         Spacer(Modifier.width(5.dp))
         Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }

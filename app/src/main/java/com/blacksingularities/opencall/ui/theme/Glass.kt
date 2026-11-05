@@ -49,7 +49,13 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -69,13 +75,21 @@ val LocalHints = staticCompositionLocalOf<HintState?> { null }
  * Płaskie, nieprzezroczyste tła (czarno-biały interfejs, bez rozmycia – lekki dla GPU).
  * [tint] – kolor tła elementu.
  */
-enum class GlassLevel(val tint: Color) {
+enum class GlassLevel {
     /** Przyciski i plakietki. */
-    Thin(Color(0xFF1C1C1C)),
+    Thin,
     /** Paski i panele. */
-    Regular(Color(0xFF000000)),
+    Regular,
     /** Karty na liście. */
-    Card(Color(0x0FFFFFFF)),
+    Card;
+
+    /** Kolor zależny od motywu (czytany przy każdym rysowaniu). */
+    val tint: Color
+        get() = when (this) {
+            Thin -> Palette.PanelHigh
+            Regular -> Palette.Ink
+            Card -> Palette.Fg.copy(alpha = 0.06f)
+        }
 }
 
 /** Kształt przycisków i plakietek: koło / pigułka. */
@@ -84,7 +98,7 @@ val BlockShape = RoundedCornerShape(50)
 /** Płaskie tło elementu (biel dla aktywnych). */
 @Composable
 fun Modifier.glass(shape: Shape, level: GlassLevel = GlassLevel.Thin, active: Boolean = false): Modifier {
-    val bg by animateColorAsState(if (active) Color.White else level.tint, tween(160), label = "flatBg")
+    val bg by animateColorAsState(if (active) Palette.Fg else level.tint, tween(160), label = "flatBg")
     return this.clip(shape).background(bg)
 }
 
@@ -117,7 +131,7 @@ fun GlassScope(haptics: Boolean, content: @Composable BoxScope.() -> Unit) {
         LocalHaptics provides haptics,
         LocalHints provides hints,
         // Biały tekst domyślnie – poza arkuszami Material tekst byłby czarny.
-        androidx.compose.material3.LocalContentColor provides Color.White,
+        androidx.compose.material3.LocalContentColor provides Palette.Fg,
     ) {
         Box(Modifier.fillMaxSize().background(Palette.Ink)) {
             content()
@@ -159,7 +173,7 @@ private fun HintLayer(hints: HintState) {
         ) {
             Text(
                 text ?: "",
-                color = Color.White,
+                color = Palette.Fg,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
@@ -245,7 +259,23 @@ fun Modifier.reactive(
             scaleY = scale
             alpha = if (enabled) 1f else 0.38f
         }
-        .then(if (label != null) Modifier.semantics { contentDescription = label } else Modifier)
+        // Własny gest nie daje czytnikowi ekranu akcji – TalkBack i Switch Access dostają je tutaj.
+        .semantics(mergeDescendants = true) {
+            if (label != null) contentDescription = label
+            role = Role.Button
+            if (!enabled) disabled()
+            onClick(label = null) {
+                if (enabled) click()
+                enabled
+            }
+            val l = onLongPress
+            if (l != null) {
+                onLongClick(label = null) {
+                    if (enabled) l()
+                    enabled
+                }
+            }
+        }
 }
 
 /** Okrągły przycisk z ikoną; zmiana ikony – płynne przenikanie. */
@@ -262,11 +292,16 @@ fun GlassIconButton(
     badge: String? = null,
     level: GlassLevel = GlassLevel.Thin,
     onLongPress: (() -> Unit)? = null,
+    state: String? = null,
     onClick: () -> Unit,
 ) {
-    val iconTint by animateColorAsState(tint ?: if (active) Palette.Ink else Color.White, tween(200), label = "iconTint")
+    val iconTint by animateColorAsState(tint ?: if (active) Palette.Ink else Palette.Fg, tween(200), label = "iconTint")
     // Plakietka leży poza przyciętym tłem przycisku, więc nie jest obcinana.
-    Box(modifier.reactive(label, enabled, onLongPress, onClick = onClick)) {
+    Box(
+        modifier
+            .reactive(label, enabled, onLongPress, onClick = onClick)
+            .then(if (state != null) Modifier.semantics { stateDescription = state } else Modifier),
+    ) {
         Box(
             Modifier
                 .size(size)

@@ -35,6 +35,7 @@ import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Place
+import androidx.compose.material.icons.rounded.SimCard
 import androidx.compose.material.icons.rounded.Smartphone
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -97,6 +98,9 @@ fun EditContactScreen(vm: AppViewModel, initial: ContactDraft) {
     }
     val isNew = d.id == null
     val changed = d != initial
+    // Karta SIM mieści tylko nazwę i jeden numer – formularz pokazuje wtedy tylko te pola.
+    val onSim = d.account?.sim == true
+    val simCard = remember(d.account) { d.account?.simSubId?.let { sub -> runCatching { vm.contactsRepo.sim.cards() }.getOrNull()?.firstOrNull { it.subscriptionId == sub } } }
 
     fun save() {
         if (d.isEmpty) {
@@ -121,9 +125,9 @@ fun EditContactScreen(vm: AppViewModel, initial: ContactDraft) {
     Page(
         if (isNew) tr("Nowy kontakt") else tr("Edytuj kontakt"),
         onBack = { if (changed) discard = true else vm.pop() },
-        actions = { PillButton(tr("Zapisz"), icon = Icons.Rounded.Check, onClick = ::save) },
+        actions = { PillButton(if (vm.simSaving) tr("Zapisywanie…") else tr("Zapisz"), icon = Icons.Rounded.Check, enabled = !vm.simSaving, onClick = ::save) },
     ) {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        if (!onSim) Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 Modifier
                     .reactive(tr("Zmień zdjęcie")) { photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
@@ -137,7 +141,7 @@ fun EditContactScreen(vm: AppViewModel, initial: ContactDraft) {
                     Avatar(d.displayName, if (isNew) null else vm.contacts.firstOrNull { it.id == d.id }?.photoUri, 104.dp)
                 }
                 Box(
-                    Modifier.align(Alignment.BottomEnd).size(34.dp).clip(CircleShape).background(Color.White),
+                    Modifier.align(Alignment.BottomEnd).size(34.dp).clip(CircleShape).background(Palette.Fg),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(Icons.Rounded.AddAPhoto, null, tint = Palette.Ink, modifier = Modifier.size(18.dp))
@@ -159,12 +163,12 @@ fun EditContactScreen(vm: AppViewModel, initial: ContactDraft) {
                 Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color.White.copy(alpha = 0.06f))
+                    .background(Palette.Fg.copy(alpha = 0.06f))
                     .reactive(tr("Zapisz w"), pressScale = 0.98f) { pickAccount = true }
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(if (acc == null || acc.local) Icons.Rounded.Smartphone else Icons.Rounded.Cloud, null, tint = Palette.TextDim)
+                Icon(accountIcon(acc), null, tint = Palette.TextDim)
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(tr("Zapisz w"), fontSize = 11.sp, color = Palette.TextDim)
@@ -174,7 +178,11 @@ fun EditContactScreen(vm: AppViewModel, initial: ContactDraft) {
             }
         }
 
-        Group(tr("Nazwa")) {
+        if (onSim) {
+            SimFields(vm, d, simCard) { d = it }
+        }
+
+        if (!onSim) Group(tr("Nazwa")) {
             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (fullName) DarkField(d.prefix, { v -> d = d.copy(prefix = v) }, tr("Tytuł (np. dr)"))
                 DarkField(d.given, { v -> d = d.copy(given = v) }, tr("Imię"), leading = Icons.Rounded.Person)
@@ -187,7 +195,7 @@ fun EditContactScreen(vm: AppViewModel, initial: ContactDraft) {
             }
         }
 
-        Group(tr("Telefon")) {
+        if (!onSim) Group(tr("Telefon")) {
             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 d.phones.forEachIndexed { i, p ->
                     FieldWithType(
@@ -205,7 +213,7 @@ fun EditContactScreen(vm: AppViewModel, initial: ContactDraft) {
             }
         }
 
-        Group(tr("E-mail")) {
+        if (!onSim) Group(tr("E-mail")) {
             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 d.emails.forEachIndexed { i, e ->
                     FieldWithType(
@@ -223,7 +231,7 @@ fun EditContactScreen(vm: AppViewModel, initial: ContactDraft) {
             }
         }
 
-        Group(tr("Adres")) {
+        if (!onSim) Group(tr("Adres")) {
             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 d.addresses.forEachIndexed { i, a ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -235,7 +243,7 @@ fun EditContactScreen(vm: AppViewModel, initial: ContactDraft) {
             }
         }
 
-        Group(tr("Więcej")) {
+        if (!onSim) Group(tr("Więcej")) {
             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 DarkField(d.organization, { v -> d = d.copy(organization = v) }, tr("Firma"), leading = Icons.Rounded.Business)
                 DarkField(d.title, { v -> d = d.copy(title = v) }, tr("Stanowisko"))
@@ -275,11 +283,21 @@ fun EditContactScreen(vm: AppViewModel, initial: ContactDraft) {
     if (pickAccount) {
         ChoiceDialog(
             tr("Zapisz w"),
-            accounts.map { (if (it.local) Icons.Rounded.Smartphone else Icons.Rounded.Cloud) to accountLabel(it) },
+            accounts.map { accountIcon(it) to accountLabel(it) },
             onDismiss = { pickAccount = false },
         ) { i ->
             pickAccount = false
-            d = d.copy(account = accounts[i])
+            val a = accounts[i]
+            // Na kartę idzie cała nazwa w jednym polu i pierwszy numer.
+            d = if (a.sim) {
+                d.copy(
+                    account = a,
+                    given = d.displayName, prefix = "", middle = "", family = "", suffix = "",
+                    phones = listOf(d.phones.firstOrNull { it.value.isNotBlank() } ?: DraftField("", 2)),
+                )
+            } else {
+                d.copy(account = a)
+            }
         }
     }
     if (discard) {
@@ -299,8 +317,48 @@ fun EditContactScreen(vm: AppViewModel, initial: ContactDraft) {
     }
 }
 
+private fun accountIcon(a: AccountRef?): ImageVector = when {
+    a == null || a.local -> Icons.Rounded.Smartphone
+    a.sim -> Icons.Rounded.SimCard
+    else -> Icons.Rounded.Cloud
+}
+
+/** Formularz kontaktu na karcie SIM: nazwa i numer z licznikami miejsca na karcie. */
+@Composable
+private fun SimFields(vm: AppViewModel, d: ContactDraft, card: com.blacksingularities.opencall.data.SimRepo.Card?, onChange: (ContactDraft) -> Unit) {
+    val number = d.phones.firstOrNull()?.value.orEmpty()
+    val nameBytes = remember(d.given) { runCatching { vm.contactsRepo.sim.nameBytes(d.given.trim()) }.getOrDefault(0) }
+    val digits = remember(number) { vm.contactsRepo.sim.cleanNumber(number).count { it != '+' } }
+    Group(tr("Karta SIM")) {
+        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            DarkField(d.given, { v -> onChange(d.copy(given = v)) }, tr("Nazwa"), leading = Icons.Rounded.Person)
+            if (card != null && card.nameMaxBytes > 0) {
+                Text(
+                    tr("Miejsce na nazwę: {0} z {1}", nameBytes, card.nameMaxBytes),
+                    fontSize = 11.sp,
+                    color = if (nameBytes > card.nameMaxBytes) Palette.Record else Palette.TextDim,
+                )
+            }
+            DarkField(number, { v -> onChange(d.copy(phones = listOf(DraftField(v, d.phones.firstOrNull()?.type ?: 2)))) }, tr("Numer"), keyboard = KeyboardType.Phone, leading = Icons.Rounded.Call)
+            if (card != null && card.numberMaxDigits > 0) {
+                Text(
+                    tr("Cyfry: {0} z {1}", digits, card.numberMaxDigits),
+                    fontSize = 11.sp,
+                    color = if (digits > card.numberMaxDigits) Palette.Record else Palette.TextDim,
+                )
+            }
+            Text(
+                if (card == null) tr("Karta SIM jest niedostępna") else tr("Na karcie zapisują się tylko nazwa i jeden numer. Zajęte: {0} z {1}.", card.used, card.capacity),
+                fontSize = 12.sp,
+                color = Palette.TextDim,
+            )
+        }
+    }
+}
+
 private fun accountLabel(a: AccountRef?): String = when {
     a == null || a.local -> tr("Telefon (bez synchronizacji)")
+    a.sim -> tr("Karta SIM {0}", a.simSlot + 1)
     a.type?.contains("google") == true -> "Google · ${a.name}"
     else -> a.name ?: ""
 }
@@ -326,7 +384,7 @@ private fun FieldWithType(
             modifier = Modifier
                 .reactive(tr("Zmień rodzaj"), onClick = onType)
                 .clip(RoundedCornerShape(50))
-                .background(Color.White.copy(alpha = 0.09f))
+                .background(Palette.Fg.copy(alpha = 0.09f))
                 .padding(horizontal = 10.dp, vertical = 7.dp),
         )
         RoundIcon(Icons.Rounded.Close, tr("Usuń"), size = 34.dp, onClick = onRemove)
@@ -339,11 +397,11 @@ private fun AddRow(label: String, onClick: () -> Unit) {
         Modifier
             .reactive(label, pressScale = 0.95f, onClick = onClick)
             .clip(RoundedCornerShape(50))
-            .background(Color.White.copy(alpha = 0.07f))
+            .background(Palette.Fg.copy(alpha = 0.07f))
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Rounded.Add, null, tint = Color.White, modifier = Modifier.size(16.dp))
+        Icon(Icons.Rounded.Add, null, tint = Palette.Fg, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(6.dp))
         Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }

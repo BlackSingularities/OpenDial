@@ -20,6 +20,13 @@ class CallService : InCallService() {
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
         CallManager.add(this, call)
+        // Połączenie alarmowe z systemowego ekranu awaryjnego też otwiera okno oddzwaniania.
+        val d = call.details
+        if (d.hasProperty(Call.Details.PROPERTY_EMERGENCY_CALLBACK_MODE) ||
+            (d.callDirection == Call.Details.DIRECTION_OUTGOING && Dialer.isEmergency(this, CallManager.numberOf(call)))
+        ) {
+            Dialer.markEmergency(this)
+        }
         if (call.details.state != Call.STATE_RINGING) {
             // Połączenie wychodzące – ekran rozmowy od razu.
             startActivity(CallActivity.intent(this).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

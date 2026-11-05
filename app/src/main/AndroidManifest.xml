@@ -5,6 +5,9 @@
 
     <!-- Połączenia i rola domyślnej aplikacji telefonu -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
+    <!-- Odsłuch poczty głosowej: domyślny dialer ma dostęp do nagrań, te uprawnienia go formalizują. -->
+    <uses-permission android:name="com.android.voicemail.permission.READ_VOICEMAIL" />
+    <uses-permission android:name="com.android.voicemail.permission.WRITE_VOICEMAIL" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
@@ -77,6 +80,20 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="tel" />
             </intent-filter>
+            <!-- Połączenia z innych aplikacji (CALL i wersje uprzywilejowane / alarmowe). Zwykłe numery
+                 trafiają tylko na klawiaturę, alarmowe są wybierane od razu. -->
+            <intent-filter>
+                <action android:name="android.intent.action.CALL" />
+                <action android:name="android.intent.action.CALL_PRIVILEGED" />
+                <action android:name="android.intent.action.CALL_EMERGENCY" />
+                <action android:name="android.intent.action.DIAL_EMERGENCY" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="tel" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.DIAL_EMERGENCY" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.CALL_BUTTON" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -146,6 +163,19 @@
             <intent-filter>
                 <action android:name="android.telecom.action.SHOW_MISSED_CALLS_NOTIFICATION" />
             </intent-filter>
+        </receiver>
+
+        <!-- Widżet „Ulubione” na ekranie głównym -->
+        <receiver
+            android:name=".launcher.FavoritesWidget"
+            android:exported="false"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_favorites" />
         </receiver>
 
         <receiver

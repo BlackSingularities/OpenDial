@@ -9,6 +9,9 @@ import org.json.JSONObject
 /** Kolejność sortowania i zapis nazw kontaktów. */
 enum class NameOrder { FIRST_LAST, LAST_FIRST }
 
+/** Motyw: według systemu, zawsze ciemny albo zawsze jasny. */
+enum class ThemeMode { SYSTEM, DARK, LIGHT }
+
 /** Ekran po uruchomieniu. */
 enum class StartTab { FAVORITES, RECENTS, CONTACTS, KEYPAD, LAST }
 
@@ -17,6 +20,7 @@ enum class RecentTap { EXPAND, CALL, DETAILS }
 
 data class AppSettings(
     val language: AppLanguage = AppLanguage.SYSTEM,
+    val theme: ThemeMode = ThemeMode.SYSTEM,
     val haptics: Boolean = true,
     val autoUpdate: Boolean = true,
     val startTab: StartTab = StartTab.LAST,
@@ -86,6 +90,7 @@ class SettingsStore(context: Context) {
     companion object {
         fun encode(s: AppSettings): JSONObject = JSONObject().apply {
             put("language", s.language.name)
+            put("theme", s.theme.name)
             put("haptics", s.haptics)
             put("autoUpdate", s.autoUpdate)
             put("startTab", s.startTab.name)
@@ -135,6 +140,7 @@ class SettingsStore(context: Context) {
             }
             return AppSettings(
                 language = e("language", d.language),
+                theme = e("theme", d.theme),
                 haptics = b("haptics", d.haptics),
                 autoUpdate = b("autoUpdate", d.autoUpdate),
                 startTab = e("startTab", d.startTab),

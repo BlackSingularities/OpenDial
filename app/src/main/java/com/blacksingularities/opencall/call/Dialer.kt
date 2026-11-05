@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
@@ -55,13 +56,48 @@ object Dialer {
         return runCatching { telecom(context).callCapablePhoneAccounts.firstOrNull { it.id == simId } }.getOrNull()
     }
 
+    // ---- Numery alarmowe -----------------------------------------------------------------------
+
+    /** Numery alarmowe na wypadek braku karty SIM / usługi telefonii (system zna listę z sieci i karty). */
+    private val fallbackEmergency = setOf("112", "911", "999", "997", "998", "000", "110", "119", "118", "08")
+
+    /**
+     * Czy numer jest alarmowy. Pierwszeństwo ma lista systemu (zależna od kraju, sieci i karty);
+     * gdy telefonia nie odpowiada, zostaje lista podstawowa. Numery alarmowe omijają okno
+     * potwierdzenia, wybór karty SIM i wszystkie filtry.
+     */
+    fun isEmergency(context: Context, number: String): Boolean {
+        val digits = number.filter { it.isDigit() || it == '+' }
+        if (digits.isEmpty() || digits.length > 6 || digits.startsWith("+")) return false
+        val system = runCatching { context.getSystemService(TelephonyManager::class.java)?.isEmergencyNumber(digits) }.getOrNull()
+        return system == true || (system == null && digits in fallbackEmergency)
+    }
+
+    private const val EMERGENCY_PREFS = "emergency"
+    private const val EMERGENCY_AT = "lastAt"
+
+    /** Okno po połączeniu alarmowym, w którym oddzwaniające służby nie trafiają na żaden filtr. */
+    const val EMERGENCY_CALLBACK_MS = 30 * 60_000L
+
+    fun markEmergency(context: Context) {
+        context.getSharedPreferences(EMERGENCY_PREFS, Context.MODE_PRIVATE).edit().putLong(EMERGENCY_AT, System.currentTimeMillis()).apply()
+    }
+
+    /** Czy niedawno było połączenie alarmowe – wtedy każde przychodzące połączenie dzwoni normalnie. */
+    fun recentEmergency(context: Context, now: Long = System.currentTimeMillis()): Boolean {
+        val at = context.getSharedPreferences(EMERGENCY_PREFS, Context.MODE_PRIVATE).getLong(EMERGENCY_AT, 0L)
+        return at > 0 && now - at in 0..EMERGENCY_CALLBACK_MS
+    }
+
     /** Dzwoni przez Telecom (z wybraną kartą SIM, jeśli podana). Zwraca false, gdy brak uprawnienia. */
     @SuppressLint("MissingPermission")
     fun call(context: Context, number: String, simId: String? = null): Boolean {
         if (!has(context, Manifest.permission.CALL_PHONE)) return false
         val uri = Uri.fromParts("tel", number.trim(), null)
         val extras = Bundle()
-        handleFor(context, simId)?.let { extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, it) }
+        val emergency = isEmergency(context, number)
+        // Połączenie alarmowe: kartę (albo jej brak) wybiera system – działa też bez SIM i w obcej sieci.
+        if (emergency) markEmergency(context) else handleFor(context, simId)?.let { extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, it) }
         return runCatching {
             telecom(context).placeCall(uri, extras)
             true
@@ -90,6 +126,17 @@ object Dialer {
     fun isMmi(number: String): Boolean {
         val n = number.trim()
         return (n.startsWith("*") || n.startsWith("#")) && n.endsWith("#")
+    }
+
+    /** IMEI (lub MEID) wszystkich gniazd SIM; pusta lista, gdy system nie udostępnia identyfikatorów. */
+    @SuppressLint("MissingPermission", "HardwareIds")
+    @Suppress("DEPRECATION")
+    fun deviceIds(context: Context): List<String> {
+        val tm = context.getSystemService(TelephonyManager::class.java) ?: return emptyList()
+        val count = runCatching { if (Build.VERSION.SDK_INT >= 30) tm.activeModemCount else tm.phoneCount }.getOrDefault(1).coerceAtLeast(1)
+        return (0 until count).mapNotNull { slot ->
+            runCatching { tm.getImei(slot) ?: tm.getMeid(slot) }.getOrNull()?.takeIf { it.isNotBlank() }
+        }
     }
 
     /** Kody tajne „*#*#1234#*#*” – obsługiwane przez system, nie przez połączenie. */

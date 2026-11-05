@@ -131,7 +131,7 @@ private fun SearchPill(
     ) {
         val label = if (searching) tr("Zamknij wyszukiwanie") else tr("Szukaj")
         Box(Modifier.size(44.dp).reactive(label, onClick = if (searching) onClose else onOpen), contentAlignment = Alignment.Center) {
-            Icon(if (searching) Icons.AutoMirrored.Rounded.ArrowBack else Icons.Rounded.Search, null, tint = Color.White, modifier = Modifier.size(22.dp))
+            Icon(if (searching) Icons.AutoMirrored.Rounded.ArrowBack else Icons.Rounded.Search, null, tint = Palette.Fg, modifier = Modifier.size(22.dp))
         }
         if (searching || p > 0f) {
             Box(Modifier.weight(1f).graphicsLayer { alpha = p }) {
@@ -141,14 +141,14 @@ private fun SearchPill(
                     onValueChange = onChange,
                     singleLine = true,
                     enabled = searching,
-                    textStyle = TextStyle(color = Color.White, fontSize = 15.sp),
-                    cursorBrush = SolidColor(Color.White),
+                    textStyle = TextStyle(color = Palette.Fg, fontSize = 15.sp),
+                    cursorBrush = SolidColor(Palette.Fg),
                     modifier = Modifier.fillMaxWidth().focusRequester(focus),
                 )
             }
             if (value.isNotEmpty()) {
                 Box(Modifier.size(44.dp).reactive(tr("Wyczyść")) { onChange("") }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.Close, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Rounded.Close, null, tint = Palette.Fg, modifier = Modifier.size(20.dp))
                 }
             } else {
                 Spacer(Modifier.width(16.dp))
@@ -170,7 +170,7 @@ fun SetupCard(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions:
         modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color.White)
+            .background(Palette.Fg)
             .padding(18.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -205,7 +205,7 @@ fun SetupCard(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions:
 private fun PillButtonDark(text: String, onClick: () -> Unit) {
     Text(
         text,
-        color = Color.White,
+        color = Palette.Fg,
         fontWeight = FontWeight.Bold,
         fontSize = 14.sp,
         modifier = Modifier

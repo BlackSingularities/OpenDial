@@ -217,7 +217,7 @@ fun ContactInfoScreen(vm: AppViewModel, contactId: Long?, number: String?) {
                         Icon(kindIcon(e.kind), null, tint = if (missed) Palette.Record else Palette.TextDim, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(Format.kind(e.kind), fontSize = 14.sp, color = if (missed) Palette.Record else Color.White)
+                            Text(Format.kind(e.kind), fontSize = 14.sp, color = if (missed) Palette.Record else Palette.Fg)
                             Text(Format.full(e.date) + if (numbers.size > 1) " · " + PhoneText.pretty(e.number) else "", fontSize = 11.sp, color = Palette.TextDim)
                         }
                         if (e.durationSec > 0) Text(PhoneText.duration(e.durationSec), fontSize = 13.sp, color = Palette.TextDim)
@@ -356,10 +356,10 @@ private fun BigAction(icon: ImageVector, label: String, enabled: Boolean = true,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         androidx.compose.foundation.layout.Box(
-            Modifier.size(54.dp).clip(RoundedCornerShape(18.dp)).background(Color.White.copy(alpha = 0.09f)),
+            Modifier.size(54.dp).clip(RoundedCornerShape(18.dp)).background(Palette.Fg.copy(alpha = 0.09f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, null, tint = Color.White, modifier = Modifier.size(24.dp))
+            Icon(icon, null, tint = Palette.Fg, modifier = Modifier.size(24.dp))
         }
         Spacer(Modifier.height(6.dp))
         Text(label, fontSize = 12.sp, color = Palette.TextDim)

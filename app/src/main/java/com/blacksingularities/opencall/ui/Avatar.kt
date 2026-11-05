@@ -79,7 +79,7 @@ fun Avatar(name: String?, photoUri: String?, size: Dp, modifier: Modifier = Modi
             label.isEmpty() || !label.first().isLetter() -> Icon(Icons.Rounded.Person, null, tint = Palette.TextDim, modifier = Modifier.size(size * 0.55f))
             else -> Text(
                 PhoneText.initials(label),
-                color = Color.White,
+                color = Palette.Fg,
                 fontSize = (size.value * 0.38f).sp,
                 fontWeight = FontWeight.Bold,
             )

@@ -14,6 +14,7 @@ class CallLogRepo(private val context: Context) {
         val projection = arrayOf(
             Calls._ID, Calls.NUMBER, Calls.CACHED_NAME, Calls.CACHED_PHOTO_URI, Calls.TYPE, Calls.DATE, Calls.DURATION,
             Calls.PHONE_ACCOUNT_ID, Calls.GEOCODED_LOCATION, Calls.NUMBER_PRESENTATION, Calls.NEW, Calls.FEATURES,
+            Calls.VOICEMAIL_URI,
         )
         cr.query(Calls.CONTENT_URI, projection, null, null, "${Calls.DATE} DESC")?.use { c ->
             while (c.moveToNext() && out.size < limit) {
@@ -33,6 +34,7 @@ class CallLogRepo(private val context: Context) {
                         hidden = c.getInt(9) != Calls.PRESENTATION_ALLOWED || num.isBlank(),
                         isNew = c.getInt(10) != 0,
                         video = (c.getInt(11) and Calls.FEATURES_VIDEO) != 0,
+                        voicemailUri = c.getString(12)?.takeIf { it.isNotBlank() },
                     ),
                 )
             }

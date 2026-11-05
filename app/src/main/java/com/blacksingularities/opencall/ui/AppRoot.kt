@@ -114,6 +114,7 @@ fun AppRoot(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions: (
             MessagePill(vm.message)
         }
         PendingCallDialog(vm)
+        InfoDialog(vm)
     }
 }
 
@@ -188,8 +189,8 @@ private fun BottomBar(vm: AppViewModel) {
 @Composable
 private fun RowScope.TabItem(icon: ImageVector, label: String, selected: Boolean, badge: Int = 0, onClick: () -> Unit) {
     // Styl wspólny dla aplikacji Open: wybrana zakładka to biały kafel z czarną ikoną i podpisem.
-    val bg by animateColorAsState(if (selected) Color.White else Color.Transparent, label = "tabBg")
-    val tint by animateColorAsState(if (selected) Color.Black else Palette.TextDim, label = "tabTint")
+    val bg by animateColorAsState(if (selected) Palette.Fg else Color.Transparent, label = "tabBg")
+    val tint by animateColorAsState(if (selected) Palette.Ink else Palette.TextDim, label = "tabTint")
     Box(Modifier.weight(1f)) {
         Column(
             Modifier
@@ -214,7 +215,7 @@ private fun RowScope.TabItem(icon: ImageVector, label: String, selected: Boolean
         if (badge > 0) {
             Text(
                 if (badge > 99) "99+" else badge.toString(),
-                color = Color.White,
+                color = Palette.Fg,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Black,
                 modifier = Modifier
@@ -224,6 +225,21 @@ private fun RowScope.TabItem(icon: ImageVector, label: String, selected: Boolean
                     .background(Palette.Record)
                     .padding(horizontal = 5.dp, vertical = 1.dp),
             )
+        }
+    }
+}
+
+/** Okno z informacją do odczytania lub skopiowania (np. IMEI po „*#06#”). */
+@Composable
+private fun InfoDialog(vm: AppViewModel) {
+    val (title, text) = vm.infoDialog ?: return
+    DarkDialog(
+        title,
+        onDismiss = { vm.infoDialog = null },
+        buttons = { PillButton(tr("Zamknij"), primary = false) { vm.infoDialog = null } },
+    ) {
+        androidx.compose.foundation.text.selection.SelectionContainer {
+            Text(text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
         }
     }
 }
@@ -255,12 +271,12 @@ private fun PendingCallDialog(vm: AppViewModel) {
                     Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color.White.copy(alpha = 0.07f))
+                        .background(Palette.Fg.copy(alpha = 0.07f))
                         .reactive(s.label, pressScale = 0.97f) { vm.confirmPending(s.id) }
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(Modifier.size(36.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(36.dp).clip(CircleShape).background(Palette.Fg), contentAlignment = Alignment.Center) {
                         Icon(Icons.Rounded.SimCard, null, tint = Palette.Ink, modifier = Modifier.size(20.dp))
                     }
                     Spacer(Modifier.width(12.dp))
