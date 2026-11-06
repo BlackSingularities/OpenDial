@@ -284,9 +284,56 @@ class ContactsRepo(private val context: Context) {
     fun saveSim(d: ContactDraft): String? {
         val acc = d.account ?: return tr("Nie wybrano karty SIM")
         val card = sim.cards().firstOrNull { it.subscriptionId == acc.simSubId } ?: return tr("Karta SIM jest niedostępna")
-        val res = sim.save(card, d.simOriginal, d.displayName, d.phones.firstOrNull { it.value.isNotBlank() }?.value.orEmpty())
+        val number = d.phones.firstOrNull { it.value.isNotBlank() }?.value.orEmpty()
+        val res = sim.save(card, d.simOriginal, d.displayName, number)
+        if (res == null) runCatching { mirrorSim(card, d.simOriginal, d.displayName.trim(), sim.cleanNumber(number)) }
         lookupCache.clear()
         return res
+    }
+
+    /**
+     * Zapis przez SimPhonebookContract trafia tylko na kartę. Inne aplikacje (SMS, rejestr połączeń)
+     * czytają kontakty z ContactsContract, gdzie system trzyma lustro karty pod jej kontem – a odświeża
+     * je zwykle dopiero przy starcie telefonu. Dlatego od razu poprawiamy to lustro sami: zmieniamy
+     * surowy kontakt edytowanego rekordu albo dodajemy nowy. Bez konta SIM w systemie nie ma czego
+     * lustrzyć. Gdy system zdążył już sam dodać rekord, niczego nie dublujemy.
+     */
+    private fun mirrorSim(card: SimRepo.Card, original: Pair<String, String>?, name: String, number: String) {
+        val type = card.accountType ?: return
+        val accName = card.accountName ?: return
+        fun matches(key: Pair<String, String>, n: String, num: String) =
+            key.first.trim() == n.trim() && PhoneText.sameNumber(key.second, num)
+
+        val raws = ArrayList<Pair<Long, Pair<String, String>>>()
+        cr.query(
+            RawContacts.CONTENT_URI, arrayOf(RawContacts._ID),
+            "${RawContacts.ACCOUNT_TYPE}=? AND ${RawContacts.ACCOUNT_NAME}=? AND ${RawContacts.DELETED}=0",
+            arrayOf(type, accName), null,
+        )?.use { c -> while (c.moveToNext()) c.getLong(0).let { raws += it to simKeyOf(it) } }
+
+        if (raws.any { matches(it.second, name, number) }) return
+        val target = original?.let { (on, onum) -> raws.firstOrNull { matches(it.second, on, onum) }?.first }
+
+        val ops = ArrayList<ContentProviderOperation>()
+        if (target != null) {
+            ops += ContentProviderOperation.newDelete(Data.CONTENT_URI)
+                .withSelection("${Data.RAW_CONTACT_ID}=? AND ${Data.MIMETYPE} IN (?,?)", arrayOf(target.toString(), StructuredName.CONTENT_ITEM_TYPE, Phone.CONTENT_ITEM_TYPE))
+                .build()
+        } else {
+            ops += ContentProviderOperation.newInsert(RawContacts.CONTENT_URI)
+                .withValue(RawContacts.ACCOUNT_TYPE, type)
+                .withValue(RawContacts.ACCOUNT_NAME, accName)
+                .build()
+        }
+        fun dataOp() = ContentProviderOperation.newInsert(Data.CONTENT_URI).let {
+            if (target != null) it.withValue(Data.RAW_CONTACT_ID, target) else it.withValueBackReference(Data.RAW_CONTACT_ID, 0)
+        }
+        if (name.isNotEmpty()) {
+            ops += dataOp().withValue(Data.MIMETYPE, StructuredName.CONTENT_ITEM_TYPE).withValue(StructuredName.DISPLAY_NAME, name).build()
+        }
+        ops += dataOp().withValue(Data.MIMETYPE, Phone.CONTENT_ITEM_TYPE)
+            .withValue(Phone.NUMBER, number).withValue(Phone.TYPE, Phone.TYPE_MOBILE).build()
+        cr.applyBatch(ContactsContract.AUTHORITY, ops)
     }
 
     /** Formularz edycji z istniejącego kontaktu (pierwszy surowy kontakt z zapisywalnego konta). */

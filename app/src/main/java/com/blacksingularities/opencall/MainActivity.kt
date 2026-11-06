@@ -125,7 +125,7 @@ class MainActivity : ComponentActivity() {
                     openDialer(number)
                 }
             }
-            Intent.ACTION_INSERT -> {
+            Intent.ACTION_INSERT, Intent.ACTION_INSERT_OR_EDIT -> {
                 vm.stack.clear()
                 vm.newContact(intent.getStringExtra(ContactsContract.Intents.Insert.PHONE), intent.getStringExtra(ContactsContract.Intents.Insert.NAME))
             }

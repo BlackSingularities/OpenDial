@@ -109,6 +109,15 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="vnd.android.cursor.dir/contact" />
                 <data android:mimeType="vnd.android.cursor.dir/person" />
+                <data android:mimeType="vnd.android.cursor.dir/raw_contact" />
+            </intent-filter>
+            <!-- „Dodaj do kontaktów” z innych aplikacji (np. SMS): numer przychodzi w dodatkach. -->
+            <intent-filter>
+                <action android:name="android.intent.action.INSERT_OR_EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.cursor.item/contact" />
+                <data android:mimeType="vnd.android.cursor.item/person" />
+                <data android:mimeType="vnd.android.cursor.item/raw_contact" />
             </intent-filter>
         </activity>
 

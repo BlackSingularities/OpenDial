@@ -1,5 +1,10 @@
 # Zmiany
 
+## 1.0.3
+
+- Kontakt zapisany na karcie SIM od razu trafia do systemowych kontaktów, więc jego nazwę widać natychmiast w zakładce Telefon i w innych aplikacjach (np. SMS), a nie dopiero po restarcie telefonu.
+- OpenDial przyjmuje „Dodaj do kontaktów” z innych aplikacji (np. z OpenSMS) – otwiera formularz nowego kontaktu z wpisanym numerem.
+
 ## 1.0.2
 
 - Zakładki u góry: filtry historii, Ulubione i Kontakty w jednym pasku, przełączane też przesunięciem palca w bok. Dolny pasek usunięty.

@@ -15,7 +15,8 @@ import com.blacksingularities.opencall.i18n.tr
  * Karta przechowuje tylko nazwę i jeden numer, a limity zależą od karty: nazwa liczona
  * w bajtach po zakodowaniu (polskie znaki zajmują więcej), numer w cyfrach. Każdy zapis
  * jest potem odczytywany z karty – „zapisano” pokazujemy dopiero, gdy rekord tam jest.
- * Systemowe konto SIM w kontaktach odświeża się samo na podstawie karty.
+ * Systemowe konto SIM w kontaktach system odświeża z karty zwykle dopiero przy starcie telefonu,
+ * dlatego po zapisie ContactsRepo od razu poprawia to lustro sam (ContactsRepo.mirrorSim).
  */
 class SimRepo(private val context: Context) {
     private val cr get() = context.contentResolver
