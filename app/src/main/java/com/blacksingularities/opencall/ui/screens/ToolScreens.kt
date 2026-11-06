@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.blacksingularities.opencall.data.CallLogRepo
+import com.blacksingularities.opencall.data.Contact
 import com.blacksingularities.opencall.data.PhoneText
 import com.blacksingularities.opencall.i18n.tr
 import com.blacksingularities.opencall.ui.AppViewModel
@@ -271,6 +272,7 @@ private fun Columns(values: List<Int>, labels: List<String>) {
 @Composable
 fun DuplicatesScreen(vm: AppViewModel) {
     val groups = remember(vm.contacts) { vm.contactsRepo.duplicates(vm.contacts) }
+    var preview by remember { mutableStateOf<List<Contact>?>(null) }
     Page(tr("Duplikaty"), onBack = { vm.pop() }) {
         if (groups.isEmpty()) {
             EmptyState(Icons.Rounded.Contacts, tr("Brak duplikatów"), tr("Nie znaleziono kontaktów z tym samym numerem ani nazwą."))
@@ -290,11 +292,80 @@ fun DuplicatesScreen(vm: AppViewModel) {
                     }
                 }
                 Row(Modifier.padding(10.dp)) {
-                    PillButton(tr("Scal {0} kontakty", g.contacts.size), icon = Icons.Rounded.Merge) { vm.mergeContacts(g.contacts.map { it.id }) }
+                    PillButton(tr("Scal {0} kontakty", g.contacts.size), icon = Icons.Rounded.Merge) { preview = g.contacts }
                 }
             }
         }
         Spacer(Modifier.height(16.dp))
+    }
+    preview?.let { list ->
+        MergePreviewDialog(vm, list, onDismiss = { preview = null }) {
+            preview = null
+            vm.mergeContacts(list.map { it.id })
+        }
+    }
+}
+
+/**
+ * Podgląd scalenia: jak będzie wyglądał kontakt po połączeniu wpisów – wszystkie numery, e-maile,
+ * adresy, daty i konta z obu stron (bez powtórzeń). Nic nie jest usuwane, więc to tylko podgląd.
+ */
+@Composable
+private fun MergePreviewDialog(vm: AppViewModel, contacts: List<Contact>, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    var details by remember(contacts) { mutableStateOf<List<com.blacksingularities.opencall.data.ContactDetails>?>(null) }
+    androidx.compose.runtime.LaunchedEffect(contacts) {
+        details = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            contacts.mapNotNull { runCatching { vm.contactsRepo.details(it.id) }.getOrNull() }
+        }
+    }
+    DarkDialog(
+        tr("Podgląd scalenia"),
+        onDismiss = onDismiss,
+        buttons = {
+            PillButton(tr("Anuluj"), primary = false, onClick = onDismiss)
+            PillButton(tr("Scal"), icon = Icons.Rounded.Merge, enabled = details != null, onClick = onConfirm)
+        },
+    ) {
+        val list = details
+        if (list == null) {
+            Text(tr("Wczytywanie…"), color = Palette.TextDim, fontSize = 13.sp)
+            return@DarkDialog
+        }
+        val names = list.map { it.name.trim() }.filter { it.isNotEmpty() }.distinct()
+        val main = list.maxByOrNull { it.phones.size + it.emails.size + it.addresses.size + (if (it.photoUri != null) 2 else 0) }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Avatar(main?.name, list.firstNotNullOfOrNull { it.photoUri }, 48.dp)
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(main?.name ?: names.firstOrNull().orEmpty(), fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                val other = names.filter { it != main?.name?.trim() }
+                if (other.isNotEmpty()) Text(tr("Także jako: {0}", other.joinToString(", ")), fontSize = 12.sp, color = Palette.TextDim)
+            }
+        }
+        val phones = ArrayList<String>()
+        list.flatMap { it.phones }.forEach { p -> if (phones.none { PhoneText.sameNumber(it, p.number) }) phones.add(p.number) }
+        MergeSection(tr("Numery"), phones.map { PhoneText.pretty(it) })
+        MergeSection(tr("E-mail"), list.flatMap { d -> d.emails.map { it.value } }.distinctBy { it.lowercase() })
+        MergeSection(tr("Adres"), list.flatMap { d -> d.addresses.map { it.value } }.distinctBy { it.lowercase() })
+        MergeSection(tr("Praca"), list.mapNotNull { d -> listOfNotNull(d.title, d.organization).joinToString(" · ").ifBlank { null } }.distinct())
+        MergeSection(
+            tr("Daty"),
+            (list.mapNotNull { d -> d.birthday?.let { tr("Urodziny") + ": " + com.blacksingularities.opencall.ui.Format.eventDate(it) } } +
+                list.flatMap { d -> d.events.map { com.blacksingularities.opencall.ui.Format.eventType(it.type, it.label) + ": " + com.blacksingularities.opencall.ui.Format.eventDate(it.value) } }).distinct(),
+        )
+        MergeSection(tr("Strony WWW"), list.flatMap { d -> d.websites.map { it.value } }.distinct())
+        MergeSection(tr("Notatka"), list.mapNotNull { it.note }.distinct())
+        MergeSection(tr("Konta"), list.flatMap { d -> d.accountRefs.map { accountBadge(it) } }.distinct())
+        Text(tr("Wpisy zostaną połączone w jeden kontakt (jak w systemie). Żadne dane nie są usuwane – w szczegółach kontaktu można je później rozłączyć."), color = Palette.TextDim, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun MergeSection(title: String, values: List<String>) {
+    if (values.isEmpty()) return
+    Column {
+        Text(title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Palette.TextDim)
+        values.forEach { Text(it, fontSize = 14.sp, maxLines = 3, overflow = TextOverflow.Ellipsis) }
     }
 }
 

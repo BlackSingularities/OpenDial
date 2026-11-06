@@ -293,6 +293,7 @@ fun GlassIconButton(
     level: GlassLevel = GlassLevel.Thin,
     onLongPress: (() -> Unit)? = null,
     state: String? = null,
+    iconSize: Dp? = null,
     onClick: () -> Unit,
 ) {
     val iconTint by animateColorAsState(tint ?: if (active) Palette.Ink else Palette.Fg, tween(200), label = "iconTint")
@@ -313,7 +314,7 @@ fun GlassIconButton(
                 transitionSpec = { (fadeIn(tween(160)) + scaleIn(initialScale = 0.6f)) togetherWith (fadeOut(tween(120)) + scaleOut(targetScale = 0.6f)) },
                 label = "icon",
             ) { ic ->
-                Icon(ic, null, tint = iconTint, modifier = Modifier.size(size * 0.5f))
+                Icon(ic, null, tint = iconTint, modifier = Modifier.size(iconSize ?: (size * 0.5f)))
             }
         }
         if (badge != null) {

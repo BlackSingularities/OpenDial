@@ -109,12 +109,25 @@ internal fun accountLabel(a: AccountRef?): String = when {
     else -> a.name ?: ""
 }
 
-/** Krótka nazwa konta na plakietkę: „Google”, „Telefon”, „SIM 1”, „WhatsApp”. */
+/**
+ * Pamięć telefonu: konto bez nazwy albo lokalne konto producenta („Phone”, com.android.localphone,
+ * vnd.sec.contact.phone itp.) – takie konta nie są synchronizowane.
+ */
+internal fun isPhoneStorage(a: AccountRef): Boolean {
+    if (a.sim) return false
+    if (a.local) return true
+    val type = a.type.orEmpty().lowercase()
+    val name = a.name.orEmpty().lowercase()
+    return "localphone" in type || "contact.phone" in type || type.endsWith(".local") || type == "local" ||
+        name == "phone" || name == "local" || name == "device"
+}
+
+/** Krótka nazwa źródła kontaktu: „Google”, „Pamięć telefonu”, „Karta SIM 1”, „WhatsApp”. */
 internal fun accountBadge(a: AccountRef): String {
     val type = a.type.orEmpty().lowercase()
     return when {
-        a.sim -> tr("SIM {0}", a.simSlot + 1)
-        a.local -> tr("Telefon")
+        a.sim -> tr("Karta SIM {0}", a.simSlot + 1)
+        isPhoneStorage(a) -> tr("Pamięć telefonu")
         "google" in type -> "Google"
         "whatsapp" in type -> "WhatsApp"
         "telegram" in type -> "Telegram"
@@ -123,6 +136,20 @@ internal fun accountBadge(a: AccountRef): String {
         "carddav" in type || "davx" in type || "bitfire" in type -> "CardDAV"
         else -> a.name ?: a.type ?: tr("Konto")
     }
+}
+
+/** Źródło kontaktu z przyimkiem: „w Google”, „w pamięci telefonu”, „na karcie SIM 1”. */
+internal fun accountWhere(a: AccountRef): String = when {
+    a.sim -> tr("na karcie SIM {0}", a.simSlot + 1)
+    isPhoneStorage(a) -> tr("w pamięci telefonu")
+    else -> tr("w {0}", accountBadge(a))
+}
+
+/** „a”, „a i b”, „a, b i c”. */
+internal fun joinAnd(items: List<String>): String = when (items.size) {
+    0 -> ""
+    1 -> items[0]
+    else -> tr("{0} i {1}", items.dropLast(1).joinToString(", "), items.last())
 }
 
 /** Okno z polem tekstowym (własna etykieta, nazwa nowej grupy). */

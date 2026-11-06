@@ -142,6 +142,8 @@ fun ContactInfoScreen(vm: AppViewModel, contactId: Long?, number: String?) {
     var showQr by remember { mutableStateOf(false) }
     var qrText by remember { mutableStateOf<String?>(null) }
     var allHistory by remember { mutableStateOf(false) }
+    // Filtr historii z kafelków statystyk: null – wszystkie, inaczej rodzaje połączeń.
+    var historyKinds by remember { mutableStateOf<Set<CallKind>?>(null) }
     var noteOpen by remember { mutableStateOf(false) }
     var pickSim by remember { mutableStateOf(false) }
     var linkWith by remember { mutableStateOf(false) }
@@ -187,14 +189,10 @@ fun ContactInfoScreen(vm: AppViewModel, contactId: Long?, number: String?) {
         },
     ) {
         // ---- Nagłówek ---------------------------------------------------------------------------
-        val tintLabel = d?.name?.trim().orEmpty()
-        val tint = Palette.AvatarTints[(tintLabel.hashCode().absoluteValue) % Palette.AvatarTints.size]
         Column(
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(28.dp))
-                .background(tint.copy(alpha = 0.45f))
-                .padding(vertical = 20.dp, horizontal = 16.dp),
+                .padding(vertical = 12.dp, horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Avatar(d?.name, d?.photoUri, 128.dp)
@@ -208,12 +206,22 @@ fun ContactInfoScreen(vm: AppViewModel, contactId: Long?, number: String?) {
                 val loc = history.firstNotNullOfOrNull { it.location }
                 if (loc != null) Text(loc, fontSize = 14.sp, color = Palette.TextDim)
             }
+            // Skąd jest kontakt: „Kontakt w Google i w pamięci telefonu” – zwykły tekst, bez plakietek.
+            val sources = d?.accountRefs?.map { accountWhere(it) }?.distinct().orEmpty()
+            if (sources.isNotEmpty()) {
+                Text(
+                    tr("Kontakt {0}", joinAnd(sources)),
+                    fontSize = 12.sp,
+                    color = Palette.TextDim,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
             val blocked = numbers.any { vm.isBlocked(it) }
-            val badges = d != null || blocked
+            val badges = blocked || d?.starred == true || d?.sendToVoicemail == true || d?.customRingtone != null
             if (badges) {
                 Spacer(Modifier.height(10.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    d?.accountRefs?.map { accountBadge(it) }?.distinct()?.forEach { Badge(it, icon = null) }
                     if (d?.starred == true) Badge(tr("Ulubiony"), icon = Icons.Rounded.Star)
                     if (blocked) Badge(tr("Zablokowany"), Palette.Record, Icons.Rounded.Block)
                     if (d?.sendToVoicemail == true) Badge(tr("Na pocztę głosową"), icon = Icons.Rounded.Voicemail)
@@ -376,19 +384,39 @@ fun ContactInfoScreen(vm: AppViewModel, contactId: Long?, number: String?) {
                 val missed = history.count { it.kind == CallKind.MISSED || it.kind == CallKind.REJECTED }
                 val talk = history.sumOf { it.durationSec }
                 val answered = history.filter { it.durationSec > 0 }
+                val inKinds = setOf(CallKind.INCOMING)
+                val outKinds = setOf(CallKind.OUTGOING)
+                val missedKinds = setOf(CallKind.MISSED, CallKind.REJECTED)
                 Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    StatTile(history.size.toString(), tr("połączeń"), Modifier.weight(1f))
-                    StatTile(incoming.toString(), tr("przychodzące"), Modifier.weight(1f))
-                    StatTile(outgoing.toString(), tr("wychodzące"), Modifier.weight(1f))
-                    StatTile(missed.toString(), tr("nieodebrane"), Modifier.weight(1f), danger = missed > 0)
+                    // Dotknięcie kafelka zawęża historię poniżej do tego rodzaju; ponowne – pokazuje wszystkie.
+                    StatTile(history.size.toString(), tr("połączeń"), Modifier.weight(1f), selected = historyKinds == null) { historyKinds = null }
+                    StatTile(incoming.toString(), tr("przychodzące"), Modifier.weight(1f), selected = historyKinds == inKinds) {
+                        historyKinds = if (historyKinds == inKinds) null else inKinds
+                    }
+                    StatTile(outgoing.toString(), tr("wychodzące"), Modifier.weight(1f), selected = historyKinds == outKinds) {
+                        historyKinds = if (historyKinds == outKinds) null else outKinds
+                    }
+                    StatTile(missed.toString(), tr("nieodebrane"), Modifier.weight(1f), danger = missed > 0, selected = historyKinds == missedKinds) {
+                        historyKinds = if (historyKinds == missedKinds) null else missedKinds
+                    }
                 }
                 val lines = listOfNotNull(
                     tr("Łącznie rozmów: {0}", PhoneText.durationShort(talk, tr("h"), tr("min"), tr("s"))).takeIf { talk > 0 },
                     tr("Średnio: {0}", PhoneText.durationShort(talk / answered.size, tr("h"), tr("min"), tr("s"))).takeIf { answered.isNotEmpty() },
                     tr("Ostatni kontakt: {0}", Format.relative(history.first().date)),
                 )
-                Text(lines.joinToString(" · "), fontSize = 12.sp, color = Palette.TextDim, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
-                val visible = if (allHistory) history else history.take(HISTORY_PREVIEW)
+                Text(
+                    lines.joinToString(" · "),
+                    fontSize = 12.sp,
+                    color = Palette.TextDim,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                )
+                val shownHistory = historyKinds?.let { k -> history.filter { it.kind in k } } ?: history
+                if (shownHistory.isEmpty()) {
+                    Text(tr("Brak połączeń tego rodzaju"), fontSize = 13.sp, color = Palette.TextDim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(12.dp))
+                }
+                val visible = if (allHistory) shownHistory else shownHistory.take(HISTORY_PREVIEW)
                 visible.forEach { e ->
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                         val isMissed = e.kind == CallKind.MISSED || e.kind == CallKind.REJECTED
@@ -401,12 +429,13 @@ fun ContactInfoScreen(vm: AppViewModel, contactId: Long?, number: String?) {
                         if (e.durationSec > 0) Text(PhoneText.duration(e.durationSec), fontSize = 13.sp, color = Palette.TextDim)
                     }
                 }
-                if (history.size > HISTORY_PREVIEW) {
+                if (shownHistory.size > HISTORY_PREVIEW) {
                     Text(
-                        if (allHistory) tr("Zwiń historię") else tr("Pokaż wszystkie ({0})", history.size),
+                        if (allHistory) tr("Zwiń historię") else tr("Pokaż wszystkie ({0})", shownHistory.size),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Palette.TextDim,
+                        textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
                             .reactive(tr("Historia połączeń"), pressScale = 0.98f) { allHistory = !allHistory }
@@ -603,16 +632,22 @@ private fun NumberRow(vm: AppViewModel, number: String, label: String, video: Bo
 }
 
 @Composable
-private fun StatTile(value: String, label: String, modifier: Modifier = Modifier, danger: Boolean = false) {
+private fun StatTile(value: String, label: String, modifier: Modifier = Modifier, danger: Boolean = false, selected: Boolean = false, onClick: () -> Unit) {
+    val fg = when {
+        selected -> Palette.Ink
+        danger -> Palette.Record
+        else -> Palette.Fg
+    }
     Column(
         modifier
+            .reactive(label, pressScale = 0.95f, onClick = onClick)
             .clip(RoundedCornerShape(14.dp))
-            .background(Palette.Fg.copy(alpha = 0.06f))
+            .background(if (selected) Palette.Fg else Palette.Fg.copy(alpha = 0.06f))
             .padding(vertical = 10.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = if (danger) Palette.Record else Palette.Fg)
-        Text(label, fontSize = 10.sp, color = Palette.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = fg)
+        Text(label, fontSize = 10.sp, color = if (selected) Palette.Ink else Palette.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

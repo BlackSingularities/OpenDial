@@ -35,6 +35,9 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -100,6 +103,9 @@ fun RecentsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions
     var query by rememberSaveable { mutableStateOf("") }
     var expanded by remember { mutableStateOf<String?>(null) }
     var menu by remember { mutableStateOf<CallGroup?>(null) }
+    // Powiększanie dwoma palcami jak w kontaktach: płynnie, a dalej kafelki.
+    val zoom = rememberListZoom(vm.settings.recentScale)
+    val columns = zoom.columns
 
     val list = remember(vm.groups, filter, query) {
         val q = PhoneText.fold(query.trim())
@@ -150,38 +156,59 @@ fun RecentsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissions
                 SetupCard(vm, onRequestRole, onRequestPermissions, Modifier.padding(14.dp))
                 NoPermission(tr("Historia połączeń wymaga dostępu do rejestru połączeń."), onRequestPermissions)
             }
-        } else LazyColumn(Modifier.fillMaxSize().nestedScroll(collapseOnScroll), contentPadding = PaddingValues(bottom = 96.dp)) {
-            item { SetupCard(vm, onRequestRole, onRequestPermissions, Modifier.padding(horizontal = 14.dp, vertical = 6.dp)) }
-            if (list.isEmpty() && vm.loaded) {
-                item {
-                    EmptyState(
-                        Icons.Rounded.History,
-                        if (query.isNotBlank() || filter != RecentFilter.ALL) tr("Nic nie znaleziono") else tr("Brak połączeń"),
-                        if (query.isNotBlank() || filter != RecentFilter.ALL) tr("Zmień filtr albo wyszukiwaną frazę.") else tr("Tu pojawi się historia rozmów."),
-                    )
+        } else Box(
+            Modifier
+                .fillMaxSize()
+                .pinchZoom(zoom, vm.settings.haptics) { v -> vm.updateSettings { it.copy(recentScale = v) } },
+        ) {
+            ZoomedDensity(zoom) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(columns),
+                modifier = Modifier.fillMaxSize().nestedScroll(collapseOnScroll),
+                contentPadding = PaddingValues(bottom = 96.dp, start = if (columns == 1) 0.dp else 10.dp, end = if (columns == 1) 0.dp else 10.dp),
+            ) {
+                item(span = { GridItemSpan(maxLineSpan) }) { SetupCard(vm, onRequestRole, onRequestPermissions, Modifier.padding(horizontal = 14.dp, vertical = 6.dp)) }
+                if (list.isEmpty() && vm.loaded) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        EmptyState(
+                            Icons.Rounded.History,
+                            if (query.isNotBlank() || filter != RecentFilter.ALL) tr("Nic nie znaleziono") else tr("Brak połączeń"),
+                            if (query.isNotBlank() || filter != RecentFilter.ALL) tr("Zmień filtr albo wyszukiwaną frazę.") else tr("Tu pojawi się historia rozmów."),
+                        )
+                    }
                 }
-            }
-            var lastBucket = ""
-            list.forEach { g ->
-                val bucket = Format.bucket(g.first.date)
-                if (bucket != lastBucket) {
-                    lastBucket = bucket
-                    item(key = "h_$bucket", contentType = "header") { ListHeader(bucket) }
-                }
-                item(key = g.key, contentType = "call") {
-                    CallRow(
-                        vm, g,
-                        expanded = expanded == g.key,
-                        onTap = {
+                var lastBucket = ""
+                list.forEach { g ->
+                    val bucket = Format.bucket(g.first.date)
+                    if (bucket != lastBucket) {
+                        lastBucket = bucket
+                        item(key = "h_$bucket", span = { GridItemSpan(maxLineSpan) }, contentType = "header") { ListHeader(bucket) }
+                    }
+                    item(key = g.key, contentType = if (columns == 1) "call" else "callTile") {
+                        val onTap: () -> Unit = {
                             when (vm.settings.recentTap) {
                                 RecentTap.CALL -> if (!g.first.hidden) vm.call(g.first.number, g.first.name)
                                 RecentTap.DETAILS -> openDetails(vm, g)
-                                RecentTap.EXPAND -> expanded = if (expanded == g.key) null else g.key
+                                // W kafelkach nie ma miejsca na rozwinięcie – szczegóły.
+                                RecentTap.EXPAND -> if (columns == 1) {
+                                    expanded = if (expanded == g.key) null else g.key
+                                } else {
+                                    openDetails(vm, g)
+                                }
                             }
-                        },
-                        onLong = { menu = g },
-                    )
+                        }
+                        if (columns == 1) {
+                            CallRow(vm, g, expanded = expanded == g.key, onTap = onTap, onLong = { menu = g })
+                        } else {
+                            CallTile(vm, g, columns, onTap = onTap, onLong = { menu = g })
+                        }
+                    }
                 }
+            }
+            }
+            ZoomPill(zoom, Modifier.align(Alignment.TopCenter).padding(top = 8.dp)) {
+                zoom.scale = 1f
+                vm.updateSettings { it.copy(recentScale = 1f) }
             }
         }
             androidx.compose.animation.AnimatedVisibility(
@@ -305,6 +332,89 @@ private fun CallRow(vm: AppViewModel, g: CallGroup, expanded: Boolean, onTap: ()
     }
 }
 
+/**
+ * Kafelek połączenia (2–4 w rzędzie): zdjęcie lub inicjały, nazwa, rodzaj połączenia i czas;
+ * nieodebrane na czerwono, w większych kafelkach przycisk oddzwonienia na zdjęciu.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun CallTile(vm: AppViewModel, g: CallGroup, columns: Int, onTap: () -> Unit, onLong: () -> Unit) {
+    val e = g.first
+    val missed = g.missed
+    val big = columns == 2
+    val small = columns >= 4
+    val title = when {
+        e.hidden -> tr("Numer prywatny")
+        e.name != null -> e.name
+        else -> PhoneText.pretty(e.number)
+    }
+    Column(
+        Modifier
+            .padding(5.dp)
+            .clip(RoundedCornerShape(if (big) 26.dp else 20.dp))
+            .background(if (g.unseenMissed) Palette.Record.copy(alpha = 0.12f) else Palette.Fg.copy(alpha = 0.05f))
+            .combinedClickable(onClick = onTap, onLongClick = onLong)
+            .padding(start = 8.dp, end = 8.dp, top = if (big) 14.dp else 10.dp, bottom = if (big) 12.dp else 9.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            val side = maxWidth * if (big) 0.8f else 0.88f
+            Box(Modifier.size(side)) {
+                Avatar(if (e.hidden || e.name == null) null else e.name, e.photoUri, side)
+                val badge = if (big) 26.dp else if (small) 18.dp else 22.dp
+                // Rodzaj połączenia w kółku w rogu zdjęcia.
+                Box(
+                    Modifier.align(Alignment.TopEnd).size(badge).clip(androidx.compose.foundation.shape.CircleShape).background(Palette.Ink),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(kindIcon(e.kind), null, tint = if (missed) Palette.Record else Palette.Fg, modifier = Modifier.size(badge * 0.6f))
+                }
+                if (!small && !e.hidden) {
+                    val call = if (big) 40.dp else 32.dp
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(call)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .background(Palette.Fg)
+                            .reactive(tr("Zadzwoń"), pressScale = 0.85f) { vm.call(e.number, e.name) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Rounded.Call, null, tint = Palette.Ink, modifier = Modifier.size(call * 0.5f))
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.size(if (big) 10.dp else if (small) 5.dp else 7.dp))
+        Text(
+            title + if (g.count > 1) " (${g.count})" else "",
+            fontSize = when {
+                big -> 15.sp
+                small -> 11.sp
+                else -> 13.sp
+            },
+            fontWeight = if (g.unseenMissed) FontWeight.Bold else FontWeight.SemiBold,
+            color = if (missed) Palette.Record else Palette.Fg,
+            maxLines = if (small) 1 else 2,
+            minLines = if (small) 1 else 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            lineHeight = when {
+                big -> 18.sp
+                small -> 13.sp
+                else -> 16.sp
+            },
+        )
+        Text(
+            Format.relative(e.date),
+            fontSize = if (small) 10.sp else 12.sp,
+            color = Palette.TextDim,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
 @Composable
 private fun QuickAction(icon: ImageVector, label: String, onClick: () -> Unit) {
     Row(
@@ -332,7 +442,7 @@ private fun CallMenu(vm: AppViewModel, g: CallGroup, onDismiss: () -> Unit) {
         onDismiss = onDismiss,
         buttons = { PillButton(tr("Zamknij"), primary = false, onClick = onDismiss) },
     ) {
-        Column(Modifier.clip(RoundedCornerShape(16.dp)).background(Palette.Fg.copy(alpha = 0.06f))) {
+        Column {
             fun go(f: () -> Unit) {
                 onDismiss()
                 f()

@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Cake
 import androidx.compose.material.icons.rounded.Accessibility
 import androidx.compose.material.icons.rounded.Contrast
 import androidx.compose.material.icons.rounded.Email
@@ -90,6 +92,9 @@ fun SettingsScreen(vm: AppViewModel, onRequestRole: () -> Unit) {
     var simPicker by remember { mutableStateOf(false) }
     var startPicker by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
+    val notificationPermission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { }
 
     Page(tr("Ustawienia"), onBack = { vm.pop() }) {
         if (!vm.isDefaultDialer) {
@@ -173,6 +178,28 @@ fun SettingsScreen(vm: AppViewModel, onRequestRole: () -> Unit) {
                 SwitchRow(Icons.Rounded.Favorite, tr("Sekcja „Często”"), tr("Najczęstsi rozmówcy pod ulubionymi"), s.showFrequent) { v -> set { it.copy(showFrequent = v) } }
             } else {
                 ActionRow(Icons.Rounded.Star, tr("Ulubione"), tr("Otwórz listę ulubionych kontaktów")) { vm.push(Route.Favorites) }
+            }
+            SwitchRow(
+                Icons.Rounded.Cake,
+                tr("Przypomnienia o urodzinach"),
+                tr("Powiadomienie rano i pasek w Ulubionych – urodziny, rocznice i inne daty z kontaktów"),
+                s.eventReminders,
+            ) { v ->
+                if (v && android.os.Build.VERSION.SDK_INT >= 33 &&
+                    ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) {
+                    notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                }
+                set { it.copy(eventReminders = v) }
+            }
+            if (s.eventReminders) {
+                CompactChoice(
+                    Icons.Rounded.Schedule,
+                    tr("Godzina przypomnienia"),
+                    listOf(7, 8, 9, 10, 12, 18),
+                    s.reminderHour,
+                    { "$it:00" },
+                ) { v -> set { it.copy(reminderHour = v) } }
             }
             if (vm.calls.isNotEmpty()) {
                 ActionRow(Icons.Rounded.DeleteSweep, tr("Wyczyść historię"), tr("Usuń cały rejestr połączeń z telefonu"), danger = true) { confirmClear = true }

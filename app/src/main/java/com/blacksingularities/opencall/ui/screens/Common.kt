@@ -42,6 +42,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,6 +70,10 @@ import com.blacksingularities.opencall.ui.components.RoundIcon
 import com.blacksingularities.opencall.ui.theme.Palette
 import com.blacksingularities.opencall.ui.theme.glass
 import com.blacksingularities.opencall.ui.theme.reactive
+
+/** Przyciski po prawej stronie nagłówka – tej samej wielkości co zakładki-chipy obok. */
+internal val HeaderButtonSize = 30.dp
+internal val HeaderIconSize = 18.dp
 
 /**
  * Nagłówek zakładki bez tytułu: tylko akcje i ustawienia przy prawej krawędzi (z plakietką,
@@ -110,9 +119,9 @@ fun SearchHeader(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             BoxWithConstraints(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
                 if (p < 1f) {
-                    Box(Modifier.fillMaxWidth().padding(end = 50.dp).graphicsLayer { alpha = 1f - p }) { leading() }
+                    Box(Modifier.fillMaxWidth().padding(end = HeaderButtonSize + 8.dp).graphicsLayer { alpha = 1f - p }) { leading() }
                 }
-                SearchPill(searching, p, query, onQuery, hint, { onSearching(true) }, close, Modifier.width(lerp(40.dp, maxWidth, p)))
+                SearchPill(searching, p, query, onQuery, hint, { onSearching(true) }, close, Modifier.width(lerp(HeaderButtonSize, maxWidth, p)))
             }
             actions()
             MoreMenu(vm)
@@ -136,12 +145,13 @@ private fun SearchPill(
     val focus = remember { FocusRequester() }
     LaunchedEffect(searching) { if (searching) runCatching { focus.requestFocus() } }
     Row(
-        modifier.height(40.dp).glass(RoundedCornerShape(50)).clip(RoundedCornerShape(50)),
+        // Złożona lupa ma rozmiar zakładek obok; rozwinięte pole jest wyższe, wygodne do pisania.
+        modifier.height(lerp(HeaderButtonSize, 40.dp, p)).glass(RoundedCornerShape(50)).clip(RoundedCornerShape(50)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val label = if (searching) tr("Zamknij wyszukiwanie") else tr("Szukaj")
-        Box(Modifier.size(40.dp).reactive(label, onClick = if (searching) onClose else onOpen), contentAlignment = Alignment.Center) {
-            Icon(if (searching) Icons.AutoMirrored.Rounded.ArrowBack else Icons.Rounded.Search, null, tint = Palette.Fg, modifier = Modifier.size(20.dp))
+        Box(Modifier.size(lerp(HeaderButtonSize, 40.dp, p)).reactive(label, onClick = if (searching) onClose else onOpen), contentAlignment = Alignment.Center) {
+            Icon(if (searching) Icons.AutoMirrored.Rounded.ArrowBack else Icons.Rounded.Search, null, tint = Palette.Fg, modifier = Modifier.size(HeaderIconSize))
         }
         if (searching || p > 0f) {
             Box(Modifier.weight(1f).graphicsLayer { alpha = p }) {
@@ -257,7 +267,7 @@ fun ListHeader(text: String, modifier: Modifier = Modifier) {
 fun MoreMenu(vm: AppViewModel) {
     var open by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     Box {
-        RoundIcon(androidx.compose.material.icons.Icons.Rounded.MoreVert, tr("Więcej"), badge = if (vm.updatePending) "1" else null, size = 40.dp) { open = true }
+        RoundIcon(androidx.compose.material.icons.Icons.Rounded.MoreVert, tr("Więcej"), badge = if (vm.updatePending) "1" else null, size = HeaderButtonSize, iconSize = HeaderIconSize) { open = true }
         androidx.compose.material3.DropdownMenu(
             expanded = open,
             onDismissRequest = { open = false },
@@ -297,10 +307,15 @@ fun AppViewModel.goPage(page: Pair<Int, Int>) {
 fun AppViewModel.stepPage(delta: Int) {
     val pages = mainPages(this)
     val cur = pages.indexOf(if (tab == 1) 1 to recentFilter else tab to 0).coerceAtLeast(0)
-    pages.getOrNull(cur + delta)?.let { goPage(it) }
+    if (pages.isEmpty()) return
+    // W kółko: z pierwszej zakładki w lewo – ostatnia, z ostatniej w prawo – pierwsza.
+    goPage(pages[(cur + delta).mod(pages.size)])
 }
 
-/** Górny pasek zakładek: ulubione, filtry historii i kontakty. */
+/**
+ * Górny pasek zakładek: ulubione, filtry historii i kontakty. Wybrana zakładka jest zawsze widoczna
+ * w całości – pasek sam przewija się do niej (przy wejściu na ekran od razu, potem płynnie).
+ */
 @Composable
 fun NavChips(vm: AppViewModel) {
     val icons = listOf(
@@ -310,16 +325,47 @@ fun NavChips(vm: AppViewModel) {
         androidx.compose.material.icons.Icons.AutoMirrored.Rounded.CallMade to tr("Wychodzące"),
         androidx.compose.material.icons.Icons.Rounded.Block to tr("Zablokowane"),
     )
-    com.blacksingularities.opencall.ui.components.ChipRow {
-        mainPages(vm).forEach { page ->
-            val selected = vm.tab == page.first && (page.first != 1 || vm.recentFilter == page.second)
+    val pages = mainPages(vm)
+    val selectedIndex = pages.indexOfFirst { page -> vm.tab == page.first && (page.first != 1 || vm.recentFilter == page.second) }
+    val scroll = androidx.compose.foundation.rememberScrollState()
+    val bounds = remember { androidx.compose.runtime.mutableStateMapOf<Int, IntRange>() }
+    var viewport by remember { mutableStateOf(0) }
+    val firstMove = remember { booleanArrayOf(true) }
+    val margin = with(androidx.compose.ui.platform.LocalDensity.current) { 16.dp.roundToPx() }
+    val sel = bounds[selectedIndex]
+    LaunchedEffect(selectedIndex, sel, viewport, scroll.maxValue) {
+        if (sel == null || viewport == 0) return@LaunchedEffect
+        val target = when {
+            sel.first - margin < scroll.value -> sel.first - margin
+            sel.last + margin > scroll.value + viewport -> sel.last + margin - viewport
+            else -> return@LaunchedEffect
+        }.coerceIn(0, scroll.maxValue)
+        if (firstMove[0]) scroll.scrollTo(target) else scroll.animateScrollTo(target)
+        firstMove[0] = false
+    }
+    Row(
+        Modifier
+            .onSizeChanged { viewport = it.width }
+            .horizontalScroll(scroll),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        pages.forEachIndexed { i, page ->
             val (icon, label) = when (page.first) {
                 0 -> androidx.compose.material.icons.Icons.Rounded.Star to tr("Ulubione")
                 2 -> androidx.compose.material.icons.Icons.Rounded.Contacts to tr("Kontakty")
                 else -> icons[page.second]
             }
             val badge = if (page == (1 to 1) && vm.unseenMissed > 0) vm.unseenMissed else null
-            com.blacksingularities.opencall.ui.components.TabChip(icon, label, selected, count = badge, compact = true) { vm.goPage(page) }
+            com.blacksingularities.opencall.ui.components.TabChip(
+                icon, label, i == selectedIndex,
+                modifier = Modifier.onPlaced { c ->
+                    val x = c.positionInParent().x.toInt()
+                    bounds[i] = x..(x + c.size.width)
+                },
+                count = badge,
+                compact = true,
+            ) { vm.goPage(page) }
         }
     }
 }

@@ -1,5 +1,16 @@
 # Zmiany
 
+## 1.0.5
+
+- Przypomnienia o urodzinach i rocznicach (Ustawienia → Kontakty, domyślnie wyłączone): rano, o wybranej godzinie, powiadomienie z dzisiejszymi okazjami („Dziś urodziny: Anna · kończy 34 lata”), a w Ulubionych pasek z okazjami na najbliższy tydzień. Sprawdzanie raz na godzinę przez systemowe zadanie – bez stałej usługi w tle, działa też po restarcie telefonu.
+- Duplikaty: przed scaleniem podgląd kontaktu po połączeniu – nazwy, wszystkie numery, e-maile, adresy, praca, daty, strony, notatki i konta z obu wpisów.
+- Pod spodem: zapis i odczyt kontaktów podzielone na mniejsze części (odczyt, zapis, zdjęcia), formularz kontaktu – na ekran i osobny plik z polami. Nowe testy dat i progów powiększenia.
+- Powiększanie dwoma palcami jak w OpenSMS – płynne, na bieżąco, z podglądem procentów (dotknięcie wraca do 100%). Dalsze powiększanie zamienia listę w kafelki (4, 3, 2 w rzędzie) z dużym zdjęciem, gwiazdką ulubionego i przyciskiem połączenia. Działa w kontaktach i w historii połączeń. Naprawiona lista kontaktów, która po powiększaniu zostawała szara.
+- Pasek zakładek zawsze pokazuje całą wybraną zakładkę, a przesuwanie palcem w bok chodzi w kółko (z pierwszej zakładki w lewo – Kontakty, z Kontaktów w prawo – pierwsza).
+- Przyciski po prawej stronie nagłówka (szukaj, nowy kontakt, menu) mają wielkość zakładek.
+- Okna wyboru bez ramki wokół listy, tytuły okien wyśrodkowane.
+- Widok kontaktu: zdjęcie i nazwa bez kolorowego tła, pod nazwą zwykły mały tekst „Kontakt w Google i w pamięci telefonu” zamiast plakietek kont. Kafelki rozmów filtrują historię poniżej (przychodzące, wychodzące, nieodebrane), opisy pod nimi są wyśrodkowane.
+
 ## 1.0.4
 
 - Nowy edytor kontaktu: sekcje można zwijać, a rzadziej używane pola dochodzą przyciskiem „Dodaj pole”. Doszły daty (urodziny, rocznice i własne, wybierane w kalendarzu, także bez roku), relacje (małżonek, dziecko, przełożony… z wyborem osoby z kontaktów), komunikatory (Signal, Telegram, WhatsApp, Skype, XMPP i własne), adresy SIP, dział i opis stanowiska, wymowa imienia i nazwiska oraz grupy konta (z tworzeniem nowej grupy).

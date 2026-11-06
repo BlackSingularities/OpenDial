@@ -46,6 +46,8 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.blacksingularities.opencall.ui.theme.reactive
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -97,15 +99,9 @@ fun ContactsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermission
     var confirmDelete by remember { mutableStateOf(false) }
     val listState = rememberLazyGridState()
     val scope = rememberCoroutineScope()
-    val haptic = LocalHapticFeedback.current
-    val density = LocalDensity.current
-    // Rozsuwanie palców powiększa listę aż do kafelków, zsuwanie zagęszcza ją – jak w Poweramp.
-    var level by remember { mutableStateOf(vm.settings.contactZoom.coerceIn(0, ZoomLevels.lastIndex)) }
-    val columns = ZoomLevels[level].columns
-    val zoom = remember { Animatable(1f) }
-    val fade = remember { Animatable(1f) }
-    var origin by remember { mutableStateOf(TransformOrigin.Center) }
-    var gridWidth by remember { mutableStateOf(1) }
+    // Rozsuwanie palców płynnie powiększa listę (jak w OpenSMS), a dalej zamienia ją w kafelki.
+    val zoom = rememberListZoom(vm.settings.contactScale)
+    val columns = zoom.columns
 
     val filtered = remember(vm.contacts, query, vm.settings.onlyWithNumbers) {
         val q = PhoneText.fold(query.trim())
@@ -149,7 +145,7 @@ fun ContactsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermission
             }
         } else {
             SearchHeader(vm, searching, { searching = it }, query, { query = it }, tr("Szukaj wśród {0} kontaktów", vm.contacts.size), leading = { NavChips(vm) }) {
-                if (!searching) RoundIcon(Icons.Rounded.PersonAdd, tr("Nowy kontakt"), enabled = vm.hasContacts) { vm.newContact() }
+                if (!searching) RoundIcon(Icons.Rounded.PersonAdd, tr("Nowy kontakt"), enabled = vm.hasContacts, size = HeaderButtonSize, iconSize = HeaderIconSize) { vm.newContact() }
             }
         }
         if (!vm.hasContacts) {
@@ -160,66 +156,14 @@ fun ContactsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermission
         Box(
             Modifier
                 .fillMaxSize()
-                .onSizeChanged { gridWidth = it.width.coerceAtLeast(1) }
-                .pinchToZoom(
-                    onStart = { c, size ->
-                        origin = TransformOrigin((c.x / size.width).coerceIn(0f, 1f), (c.y / size.height).coerceIn(0f, 1f))
-                        scope.launch { zoom.stop(); fade.stop() }
-                    },
-                    onPinch = { acc, c ->
-                        val canIn = level < ZoomLevels.lastIndex
-                        val canOut = level > 0
-                        when {
-                            acc > 1.25f && canIn || acc < 0.8f && canOut -> {
-                                val next = level + if (acc > 1f) 1 else -1
-                                val w = with(density) { gridWidth.toDp() }
-                                val ratio = avatarSize(next, w) / avatarSize(level, w)
-                                // Element pod palcami zostaje pod palcami po zmianie układu.
-                                val anchor = listState.layoutInfo.visibleItemsInfo.firstOrNull {
-                                    c.y >= it.offset.y && c.y < it.offset.y + it.size.height && (columns == 1 || (c.x >= it.offset.x && c.x < it.offset.x + it.size.width))
-                                } ?: listState.layoutInfo.visibleItemsInfo.firstOrNull()
-                                val anchorTop = anchor?.offset?.y?.toFloat() ?: 0f
-                                val visual = zoom.value
-                                level = next
-                                vm.updateSettings { it.copy(contactZoom = next) }
-                                if (vm.settings.haptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                scope.launch {
-                                    zoom.snapTo((visual / ratio).coerceIn(0.55f, 1.8f))
-                                    fade.snapTo(0.35f)
-                                    launch { fade.animateTo(1f, tween(260)) }
-                                    zoom.animateTo(1f, spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow))
-                                }
-                                if (anchor != null) {
-                                    scope.launch {
-                                        listState.scrollToItem(anchor.index)
-                                        listState.scrollBy(-(anchorTop * ratio.coerceAtMost(1f)))
-                                    }
-                                }
-                                true
-                            }
-                            else -> {
-                                // Na krańcach zakresu – opór gumki zamiast zmiany.
-                                val damp = if (acc > 1f && !canIn || acc < 1f && !canOut) 0.12f else 0.55f
-                                scope.launch { zoom.snapTo(1f + (acc - 1f) * damp) }
-                                false
-                            }
-                        }
-                    },
-                    onEnd = {
-                        scope.launch { zoom.animateTo(1f, spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMedium)) }
-                    },
-                ),
+                .pinchZoom(zoom, vm.settings.haptics) { v -> vm.updateSettings { it.copy(contactScale = v) } },
         ) {
+            ZoomedDensity(zoom) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(columns),
                 state = listState,
-                modifier = Modifier.fillMaxSize().graphicsLayer {
-                    scaleX = zoom.value
-                    scaleY = zoom.value
-                    alpha = fade.value
-                    transformOrigin = origin
-                },
-                contentPadding = PaddingValues(bottom = 16.dp, end = 22.dp, start = if (columns == 1) 0.dp else 8.dp),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 16.dp, end = 22.dp, start = if (columns == 1) 0.dp else 10.dp),
             ) {
                 item(span = { GridItemSpan(maxLineSpan) }) { SetupCard(vm, onRequestRole, onRequestPermissions, Modifier.padding(horizontal = 14.dp, vertical = 6.dp)) }
                 if (filtered.isEmpty() && vm.loaded) {
@@ -251,13 +195,18 @@ fun ContactsTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermission
                         val onLong: () -> Unit = { selection = selection + c.id }
                         if (columns == 1) {
                             Box(Modifier.animateItem()) {
-                                ContactRow(vm, c, selected = c.id in selection, selecting = selecting, avatar = ZoomLevels[level].avatar, onClick = onClick, onLong = onLong)
+                                ContactRow(vm, c, selected = c.id in selection, selecting = selecting, onClick = onClick, onLong = onLong)
                             }
                         } else {
-                            ContactTile(c, columns, selected = c.id in selection, selecting = selecting, onClick = onClick, onLong = onLong, modifier = Modifier.animateItem())
+                            ContactTile(vm, c, columns, selected = c.id in selection, selecting = selecting, onClick = onClick, onLong = onLong, modifier = Modifier.animateItem())
                         }
                     }
                 }
+            }
+            }
+            ZoomPill(zoom, Modifier.align(Alignment.TopCenter).padding(top = 8.dp)) {
+                zoom.scale = 1f
+                vm.updateSettings { it.copy(contactScale = 1f) }
             }
             if (sections.size > 4 && query.isBlank()) {
                 // +1: pierwszy element listy to karta konfiguracji.
@@ -339,62 +288,15 @@ fun ContactRow(
     }
 }
 
-private data class ZoomLevel(val columns: Int, val avatar: Dp = 0.dp)
-
-/** Poziomy przybliżenia od najgęstszej listy, przez coraz większą, po coraz większe kafelki. */
-private val ZoomLevels = listOf(
-    ZoomLevel(1, 26.dp),
-    ZoomLevel(1, 34.dp),
-    ZoomLevel(1, 42.dp),
-    ZoomLevel(1, 52.dp),
-    ZoomLevel(1, 64.dp),
-    ZoomLevel(4),
-    ZoomLevel(3),
-    ZoomLevel(2),
-)
-
-/** Przybliżony rozmiar awatara na danym poziomie – do płynnego przejścia między układami. */
-private fun avatarSize(level: Int, width: Dp): Dp {
-    val z = ZoomLevels[level]
-    return if (z.columns == 1) z.avatar else ((width - 30.dp) / z.columns - 20.dp).coerceAtLeast(24.dp)
-}
-
 /**
- * Szczypanie dwoma palcami. [onPinch] dostaje łączne przybliżenie od początku (lub od ostatniej
- * zmiany układu) i zwraca true, gdy układ się zmienił – wtedy licznik zaczyna od nowa.
- * Jeden palec przewija listę jak zwykle.
+ * Kafelek kontaktu (2–4 w rzędzie): duże zdjęcie albo inicjały, nazwa pod spodem, gwiazdka
+ * ulubionego i – w większych kafelkach – przycisk szybkiego połączenia na zdjęciu.
+ * Wysokość tekstu jest stała, więc kafelki w rzędzie mają równe tła.
  */
-private fun Modifier.pinchToZoom(
-    onStart: (Offset, IntSize) -> Unit,
-    onPinch: (Float, Offset) -> Boolean,
-    onEnd: () -> Unit,
-): Modifier = pointerInput(Unit) {
-    awaitEachGesture {
-        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-        var acc = 1f
-        var pinching = false
-        do {
-            val event = awaitPointerEvent(PointerEventPass.Initial)
-            if (event.changes.count { it.pressed } >= 2) {
-                val centroid = event.calculateCentroid(useCurrent = true)
-                if (!pinching) {
-                    pinching = true
-                    onStart(centroid, size)
-                }
-                acc *= event.calculateZoom()
-                if (onPinch(acc, centroid)) acc = 1f
-                event.changes.forEach { it.consume() }
-            } else if (pinching) {
-                event.changes.forEach { it.consume() }
-            }
-        } while (event.changes.any { it.pressed })
-        if (pinching) onEnd()
-    }
-}
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ContactTile(
+    vm: AppViewModel,
     c: Contact,
     columns: Int,
     selected: Boolean,
@@ -403,44 +305,86 @@ private fun ContactTile(
     onLong: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    BoxWithConstraints(
+    val big = columns == 2
+    val small = columns >= 4
+    Column(
         modifier
-            .padding(4.dp)
-            .clip(RoundedCornerShape(if (columns == 2) 24.dp else 18.dp))
-            .background(if (selected) Palette.Fg.copy(alpha = 0.14f) else Palette.Fg.copy(alpha = 0.04f))
+            .padding(5.dp)
+            .clip(RoundedCornerShape(if (big) 26.dp else 20.dp))
+            .background(if (selected) Palette.Fg.copy(alpha = 0.16f) else Palette.Fg.copy(alpha = 0.05f))
             .combinedClickable(onClick = onClick, onLongClick = onLong)
-            .padding(horizontal = 6.dp, vertical = 10.dp),
+            .padding(start = 8.dp, end = 8.dp, top = if (big) 14.dp else 10.dp, bottom = if (big) 12.dp else 9.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        val side = (maxWidth - 8.dp).coerceAtLeast(24.dp)
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box {
+        BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            val side = maxWidth * if (big) 0.8f else 0.88f
+            Box(Modifier.size(side)) {
                 Avatar(c.name, c.photoUri, side)
-                if (selecting) {
-                    Icon(
-                        if (selected) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
-                        null,
-                        tint = if (selected) Palette.Fg else Palette.TextFaint,
-                        modifier = Modifier.align(Alignment.TopEnd).size(if (columns == 4) 18.dp else 24.dp),
-                    )
-                } else if (c.starred) {
-                    Icon(Icons.Rounded.Star, null, tint = Palette.Amber, modifier = Modifier.align(Alignment.TopEnd).size(if (columns == 4) 14.dp else 18.dp))
+                val badge = if (big) 26.dp else if (small) 18.dp else 22.dp
+                when {
+                    selecting -> Box(
+                        Modifier.align(Alignment.TopEnd).size(badge).clip(CircleShape).background(Palette.Ink),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            if (selected) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
+                            null,
+                            tint = if (selected) Palette.Fg else Palette.TextFaint,
+                            modifier = Modifier.size(badge - 2.dp),
+                        )
+                    }
+                    c.starred -> Box(
+                        Modifier.align(Alignment.TopEnd).size(badge).clip(CircleShape).background(Palette.Ink),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Rounded.Star, null, tint = Palette.Fg, modifier = Modifier.size(badge * 0.62f))
+                    }
+                }
+                val n = c.primaryNumber
+                if (!small && !selecting && n != null) {
+                    val call = if (big) 40.dp else 32.dp
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(call)
+                            .clip(CircleShape)
+                            .background(Palette.Fg)
+                            .reactive(tr("Zadzwoń do {0}", c.name), pressScale = 0.85f) { vm.call(n.number, c.name) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Rounded.Call, null, tint = Palette.Ink, modifier = Modifier.size(call * 0.5f))
+                    }
                 }
             }
-            Spacer(Modifier.height(if (columns == 4) 5.dp else 8.dp))
+        }
+        Spacer(Modifier.height(if (big) 10.dp else if (small) 5.dp else 7.dp))
+        Text(
+            c.name,
+            fontSize = when {
+                big -> 15.sp
+                small -> 11.sp
+                else -> 13.sp
+            },
+            fontWeight = FontWeight.SemiBold,
+            maxLines = if (small) 1 else 2,
+            minLines = if (small) 1 else 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            lineHeight = when {
+                big -> 18.sp
+                small -> 13.sp
+                else -> 16.sp
+            },
+        )
+        if (big) {
             Text(
-                c.name,
-                fontSize = when (columns) { 2 -> 15.sp; 3 -> 13.sp; else -> 11.sp },
-                fontWeight = FontWeight.Medium,
-                maxLines = if (columns == 4) 1 else 2,
+                c.primaryNumber?.let { "${Format.phoneType(it.type, it.label)} · ${PhoneText.pretty(it.number)}" }.orEmpty(),
+                fontSize = 12.sp,
+                color = Palette.TextDim,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
-                lineHeight = when (columns) { 2 -> 18.sp; 3 -> 16.sp; else -> 13.sp },
             )
-            if (columns == 2) {
-                c.primaryNumber?.let {
-                    Text(PhoneText.pretty(it.number), fontSize = 12.sp, color = Palette.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
         }
     }
 }

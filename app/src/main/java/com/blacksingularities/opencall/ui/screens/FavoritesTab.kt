@@ -1,6 +1,15 @@
 package com.blacksingularities.opencall.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import com.blacksingularities.opencall.ui.theme.reactive
+import com.blacksingularities.opencall.ui.theme.Palette
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.rounded.Event
+import androidx.compose.material.icons.rounded.Cake
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -66,6 +75,17 @@ fun FavoritesTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissio
         }
     }
     var menu by remember { mutableStateOf<Contact?>(null) }
+    // Najbliższe urodziny i rocznice (tydzień naprzód) – tylko z włączonymi przypomnieniami.
+    var events by remember { mutableStateOf<List<com.blacksingularities.opencall.data.ContactEvent>>(emptyList()) }
+    androidx.compose.runtime.LaunchedEffect(vm.contacts, vm.settings.eventReminders, vm.hasContacts) {
+        events = if (vm.settings.eventReminders && vm.hasContacts) {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.blacksingularities.opencall.data.ContactEvents.upcoming(vm.getApplication(), 7)
+            }
+        } else {
+            emptyList()
+        }
+    }
 
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars)) {
         if (onBack != null) PageHeader(tr("Ulubione"), onBack) else TabHeader(vm, leading = { NavChips(vm) })
@@ -80,6 +100,9 @@ fun FavoritesTab(vm: AppViewModel, onRequestRole: () -> Unit, onRequestPermissio
             if (!vm.hasContacts) {
                 item(span = { GridItemSpan(maxLineSpan) }) { NoPermission(tr("Ulubione wymagają dostępu do kontaktów."), onRequestPermissions) }
                 return@LazyVerticalGrid
+            }
+            if (events.isNotEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }) { EventsCard(vm, events) }
             }
             if (starred.isEmpty() && vm.loaded) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
@@ -139,5 +162,56 @@ private fun FavoriteTile(c: Contact, onClick: () -> Unit, onLong: () -> Unit) {
         Avatar(c.name, c.photoUri, 72.dp)
         Spacer(Modifier.height(8.dp))
         Text(c.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, lineHeight = 16.sp)
+    }
+}
+
+/** Pasek okazji: „Dziś urodziny: Anna · kończy 34 lata”, niżej najbliższe dni. Dotknięcie otwiera kontakt. */
+@Composable
+private fun EventsCard(vm: AppViewModel, events: List<com.blacksingularities.opencall.data.ContactEvent>) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp))
+            .background(Palette.Fg.copy(alpha = 0.06f))
+            .padding(vertical = 6.dp),
+    ) {
+        val today = events.filter { it.days == 0 }
+        Text(
+            when {
+                today.size == 1 && today[0].birthday -> tr("Dziś urodziny: {0}", today[0].name)
+                today.isNotEmpty() -> tr("Dzisiejsze okazje: {0}", today.size)
+                else -> tr("Najbliższe okazje")
+            },
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+        )
+        events.take(5).forEach { e ->
+            val whenText = when (e.days) {
+                0 -> tr("dziś")
+                1 -> tr("jutro")
+                else -> tr("za {0} dni", e.days)
+            }
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .reactive(e.name, pressScale = 0.98f) { vm.push(Route.ContactInfo(e.contactId)) }
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Avatar(e.name, e.photoUri, 36.dp)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(e.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                    Text(
+                        com.blacksingularities.opencall.reminders.EventReminders.describe(e) + " · " + whenText,
+                        fontSize = 12.sp,
+                        color = if (e.days == 0) Palette.Fg else Palette.TextDim,
+                        maxLines = 1,
+                    )
+                }
+                Icon(if (e.birthday) Icons.Rounded.Cake else Icons.Rounded.Event, null, tint = Palette.TextDim, modifier = Modifier.size(18.dp))
+            }
+        }
     }
 }

@@ -137,6 +137,10 @@ class MainActivity : ComponentActivity() {
                 vm.stack.clear()
                 vm.push(Route.Blocked)
             }
+            ACTION_SHOW_FAVORITES -> {
+                vm.stack.clear()
+                if (vm.settings.showFavoritesTab) vm.selectTab(0) else vm.push(Route.Favorites)
+            }
             ACTION_SHOW_AI -> {
                 vm.stack.clear()
                 vm.push(Route.AiHistory)
@@ -169,6 +173,7 @@ class MainActivity : ComponentActivity() {
         const val ACTION_DIAL_EMERGENCY = "android.intent.action.DIAL_EMERGENCY"
         const val ACTION_SHOW_RECENTS = "com.blacksingularities.opencall.SHOW_RECENTS"
         const val ACTION_SHOW_BLOCKED = "com.blacksingularities.opencall.SHOW_BLOCKED"
+        const val ACTION_SHOW_FAVORITES = "com.blacksingularities.opencall.SHOW_FAVORITES"
         const val ACTION_SHOW_AI = "com.blacksingularities.opencall.SHOW_AI"
         const val ACTION_ADD_CALL = "com.blacksingularities.opencall.ADD_CALL"
     }

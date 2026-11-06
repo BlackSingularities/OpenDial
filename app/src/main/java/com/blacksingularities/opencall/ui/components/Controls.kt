@@ -60,6 +60,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -85,6 +86,7 @@ fun RoundIcon(
     size: Dp = 44.dp,
     tint: Color? = null,
     onLongPress: (() -> Unit)? = null,
+    iconSize: Dp? = null,
     onClick: () -> Unit,
 ) {
     GlassIconButton(
@@ -97,6 +99,7 @@ fun RoundIcon(
         tint = tint,
         badge = badge,
         onLongPress = onLongPress,
+        iconSize = iconSize,
         onClick = onClick,
     )
 }
@@ -384,7 +387,7 @@ fun DarkDialog(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Palette.Fg)
+            Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Palette.Fg, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             Column(
                 Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -401,8 +404,9 @@ fun DarkDialog(
 @Composable
 fun ChoiceDialog(title: String, options: List<Pair<ImageVector, String>>, onDismiss: () -> Unit, subtitle: String? = null, onPick: (Int) -> Unit) {
     DarkDialog(title, onDismiss, buttons = { PillButton(tr("Anuluj"), primary = false, onClick = onDismiss) }) {
-        if (subtitle != null) Text(subtitle, color = Palette.TextDim, fontSize = 13.sp)
-        Column(Modifier.clip(RoundedCornerShape(16.dp)).background(Palette.Fg.copy(alpha = 0.06f))) {
+        if (subtitle != null) Text(subtitle, color = Palette.TextDim, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        // Zwykła lista, bez tła i ramki wokół pozycji.
+        Column {
             options.forEachIndexed { i, (icon, label) ->
                 ActionRow(icon, label) { onPick(i) }
             }

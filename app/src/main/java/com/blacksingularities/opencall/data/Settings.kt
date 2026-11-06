@@ -40,7 +40,14 @@ data class AppSettings(
     val showFrequent: Boolean = true,
     /** Układ listy kontaktów: 1 = lista, 2–4 = kafelki (zmieniane szczypaniem). */
     /** Poziom przybliżenia kontaktów: 0–4 lista od najgęstszej, 5–7 kafelki coraz większe. */
-    val contactZoom: Int = 2,
+    /** Powiększenie listy kontaktów gestem: < [CONTACT_TILES_AT] lista, wyżej kafelki. */
+    val contactScale: Float = 1f,
+    /** Powiększenie historii połączeń gestem (te same progi co w kontaktach). */
+    val recentScale: Float = 1f,
+    /** Przypomnienia o urodzinach i rocznicach: powiadomienie rano i pasek w Ulubionych. */
+    val eventReminders: Boolean = false,
+    /** Godzina porannego powiadomienia (0–23). */
+    val reminderHour: Int = 9,
     /** Zakładka „Ulubione” na dolnym pasku; wyłączona – aplikacja startuje od „Ostatnich”. */
     val showFavoritesTab: Boolean = true,
     // W trakcie rozmowy
@@ -76,6 +83,20 @@ data class AppSettings(
     }
 }
 
+const val CONTACT_SCALE_MIN = 0.6f
+const val CONTACT_SCALE_MAX = 3f
+
+/** Od tego powiększenia lista kontaktów zamienia się w kafelki. */
+const val CONTACT_TILES_AT = 1.6f
+
+/** Liczba kafelków w rzędzie dla powiększenia [scale] (1 = lista). */
+fun contactColumns(scale: Float): Int = when {
+    scale < CONTACT_TILES_AT -> 1
+    scale < 2.0f -> 4
+    scale < 2.45f -> 3
+    else -> 2
+}
+
 /** Ustawienia w SharedPreferences jako jeden obiekt JSON – odporny na dodawanie nowych pól. */
 class SettingsStore(context: Context) {
     private val prefs = context.getSharedPreferences("opencall_settings", Context.MODE_PRIVATE)
@@ -107,7 +128,10 @@ class SettingsStore(context: Context) {
             put("nameOrder", s.nameOrder.name)
             put("onlyWithNumbers", s.onlyWithNumbers)
             put("showFrequent", s.showFrequent)
-            put("contactZoom", s.contactZoom)
+            put("contactScale", s.contactScale.toDouble())
+            put("recentScale", s.recentScale.toDouble())
+            put("eventReminders", s.eventReminders)
+            put("reminderHour", s.reminderHour)
             put("showFavoritesTab", s.showFavoritesTab)
             put("proximity", s.proximity)
             put("vibrateOnConnect", s.vibrateOnConnect)
@@ -162,12 +186,16 @@ class SettingsStore(context: Context) {
                 nameOrder = e("nameOrder", d.nameOrder),
                 onlyWithNumbers = b("onlyWithNumbers", d.onlyWithNumbers),
                 showFrequent = b("showFrequent", d.showFrequent),
-                contactZoom = if (o.has("contactZoom")) {
-                    o.optInt("contactZoom", d.contactZoom).coerceIn(0, 7)
+                contactScale = if (o.has("contactScale")) {
+                    o.optDouble("contactScale", 1.0).toFloat().coerceIn(CONTACT_SCALE_MIN, CONTACT_SCALE_MAX)
                 } else {
-                    // Starsze wersje zapisywały liczbę kolumn (1 = lista, 2–4 = kafelki).
-                    when (o.optInt("contactColumns", 1)) { 4 -> 5; 3 -> 6; 2 -> 7; else -> d.contactZoom }
+                    // Starsze wersje: poziomy 0–7 (5–7 = kafelki), a jeszcze starsze – liczba kolumn.
+                    val level = if (o.has("contactZoom")) o.optInt("contactZoom", 2) else when (o.optInt("contactColumns", 1)) { 4 -> 5; 3 -> 6; 2 -> 7; else -> 2 }
+                    listOf(0.65f, 0.8f, 1f, 1.2f, 1.45f, 1.75f, 2.2f, 2.7f)[level.coerceIn(0, 7)]
                 },
+                eventReminders = b("eventReminders", d.eventReminders),
+                reminderHour = o.optInt("reminderHour", d.reminderHour).coerceIn(0, 23),
+                recentScale = o.optDouble("recentScale", 1.0).toFloat().coerceIn(CONTACT_SCALE_MIN, CONTACT_SCALE_MAX),
                 showFavoritesTab = b("showFavoritesTab", d.showFavoritesTab),
                 proximity = b("proximity", d.proximity),
                 vibrateOnConnect = b("vibrateOnConnect", d.vibrateOnConnect),

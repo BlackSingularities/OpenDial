@@ -153,25 +153,8 @@ object Format {
     }
 
     /** Dni do najbliższej rocznicy daty (0 = dziś) i która to rocznica (null bez roku). */
-    fun nextOccurrence(raw: String, now: Calendar = Calendar.getInstance()): Pair<Int, Int?>? {
-        val (y, month, day) = ContactKinds.parseDate(raw) ?: return null
-        val today = (now.clone() as Calendar).apply {
-            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-        }
-        val next = (today.clone() as Calendar).apply {
-            set(Calendar.MONTH, month - 1)
-            // 29 lutego w roku nieprzestępnym – 28 lutego.
-            set(Calendar.DAY_OF_MONTH, minOf(day, getActualMaximum(Calendar.DAY_OF_MONTH)))
-        }
-        if (next.before(today)) {
-            next.add(Calendar.YEAR, 1)
-            next.set(Calendar.MONTH, month - 1)
-            next.set(Calendar.DAY_OF_MONTH, minOf(day, next.getActualMaximum(Calendar.DAY_OF_MONTH)))
-        }
-        val days = ((next.timeInMillis - today.timeInMillis + 3_600_000L) / 86_400_000L).toInt()
-        val years = y?.let { next.get(Calendar.YEAR) - it }?.takeIf { it in 0..200 }
-        return days to years
-    }
+    fun nextOccurrence(raw: String, now: Calendar = Calendar.getInstance()): Pair<Int, Int?>? =
+        com.blacksingularities.opencall.data.ContactEvents.next(raw, now)
 
     /** „dziś”, „jutro”, „za 12 dni” + „skończy 34 lata” / „34. rocznica”. */
     fun countdown(raw: String, birthday: Boolean): String? {

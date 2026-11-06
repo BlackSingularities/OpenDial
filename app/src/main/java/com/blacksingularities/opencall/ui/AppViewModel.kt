@@ -173,6 +173,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         I18n.apply(settings.language)
+        runCatching { com.blacksingularities.opencall.reminders.EventReminders.schedule(ctx, settings) }
         runCatching {
             ctx.contentResolver.registerContentObserver(ContactsContract.Contacts.CONTENT_URI, true, contactsObserver)
             ctx.contentResolver.registerContentObserver(CallLog.Calls.CONTENT_URI, true, logObserver)
@@ -192,6 +193,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         store.save(settings)
         if (old.language != settings.language) I18n.apply(settings.language)
         if (old.nameOrder != settings.nameOrder || old.groupCalls != settings.groupCalls) reload()
+        if (old.eventReminders != settings.eventReminders || old.reminderHour != settings.reminderHour) {
+            com.blacksingularities.opencall.reminders.EventReminders.resetToday(ctx)
+            runCatching { com.blacksingularities.opencall.reminders.EventReminders.schedule(ctx, settings) }
+        }
         // Zakładka właśnie zniknęła z paska – nie zostawiamy jej otwartej.
         if (!settings.showFavoritesTab && tab == 0) selectTab(1)
     }

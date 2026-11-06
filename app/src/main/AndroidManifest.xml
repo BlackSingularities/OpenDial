@@ -22,6 +22,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Przypomnienia o urodzinach: okresowe zadanie systemu przetrwa restart telefonu. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Aktualizacje z GitHub Releases i rozmowy asystenta AI -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
@@ -163,6 +165,11 @@
         <!-- Asystent AI: śledzenie rozmów agenta po przekazaniu połączenia. -->
         <service
             android:name=".ai.AiPollJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <service
+            android:name=".reminders.EventReminderJob"
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
 
