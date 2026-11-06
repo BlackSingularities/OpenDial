@@ -1,7 +1,9 @@
 package com.blacksingularities.opencall
 
 import com.blacksingularities.opencall.data.ContactDraft
+import com.blacksingularities.opencall.data.ContactKinds
 import com.blacksingularities.opencall.data.DraftField
+import com.blacksingularities.opencall.data.PostalField
 import com.blacksingularities.opencall.data.VCard
 import com.blacksingularities.opencall.update.isNewer
 import org.junit.Assert.assertEquals
@@ -31,6 +33,71 @@ class VCardTest {
         assertEquals("lucja@example.com", parsed.emails.single().value)
         assertEquals("1990-05-12", parsed.birthday)
         assertEquals("Pierwsza linia\nDruga linia", parsed.note)
+    }
+
+    @Test
+    fun roundTripExtendedFields() {
+        val d = ContactDraft(
+            given = "Jan",
+            family = "Kowalski",
+            phoneticGiven = "Jan",
+            phoneticFamily = "Kowalski",
+            organization = "ACME",
+            department = "Dział IT",
+            title = "Kierownik",
+            jobDescription = "Utrzymanie serwerów",
+            phones = listOf(DraftField("600100200", 2), DraftField("221234567", 3, primary = true)),
+            addresses = listOf(PostalField(street = "ul. Długa 1", postcode = "00-001", city = "Warszawa", country = "Polska", type = 2)),
+            websites = listOf(DraftField("https://blog.example.com", 2)),
+            events = listOf(DraftField("2015-06-20", 1), DraftField("--03-08", 0, "Imieniny")),
+            relations = listOf(DraftField("Anna Kowalska", 14)),
+            ims = listOf(DraftField("+48600100200", ContactKinds.IM_CUSTOM, "Signal"), DraftField("jan.k", 3)),
+            sip = listOf(DraftField("jan@sip.example.com", 3)),
+        )
+        val p = VCard.parse(VCard.write(d)).single()
+        assertEquals("Kowalski", p.phoneticFamily)
+        assertEquals("ACME", p.organization)
+        assertEquals("Dział IT", p.department)
+        assertEquals("Utrzymanie serwerów", p.jobDescription)
+        assertTrue(p.phones[1].primary)
+        assertFalse(p.phones[0].primary)
+        val a = p.addresses.single()
+        assertEquals("ul. Długa 1", a.street)
+        assertEquals("00-001", a.postcode)
+        assertEquals("Warszawa", a.city)
+        assertEquals("Polska", a.country)
+        assertEquals(2, a.type)
+        assertEquals(2, p.websites.single().type)
+        assertEquals(listOf("2015-06-20", "--03-08"), p.events.map { it.value })
+        assertEquals(1, p.events[0].type)
+        assertEquals("Imieniny", p.events[1].label)
+        assertEquals("Anna Kowalska", p.relations.single().value)
+        assertEquals(14, p.relations.single().type)
+        assertEquals(listOf("Signal", null), p.ims.map { it.label })
+        assertEquals(listOf("+48600100200", "jan.k"), p.ims.map { it.value })
+        assertEquals(3, p.ims[1].type)
+        assertEquals("jan@sip.example.com", p.sip.single().value)
+    }
+
+    @Test
+    fun eventDates() {
+        assertEquals(Triple(1990, 5, 12), ContactKinds.parseDate("1990-05-12"))
+        assertEquals(Triple(null, 3, 8), ContactKinds.parseDate("--03-08"))
+        assertEquals(Triple(null, 3, 8), ContactKinds.parseDate("--0308"))
+        assertEquals(null, ContactKinds.parseDate("12.05.1990"))
+        assertEquals("--03-08", ContactKinds.formatDate(null, 3, 8))
+        assertEquals("1990-05-12", ContactKinds.formatDate(1990, 5, 12))
+    }
+
+    @Test
+    fun fieldValidation() {
+        assertTrue(ContactKinds.validEmail("jan@example.com"))
+        assertTrue(ContactKinds.validEmail(""))
+        assertFalse(ContactKinds.validEmail("jan@example"))
+        assertTrue(ContactKinds.validPhone("+48 600-100-200"))
+        assertTrue(ContactKinds.validPhone("*100#"))
+        assertFalse(ContactKinds.validPhone("12"))
+        assertFalse(ContactKinds.validPhone("abc123456"))
     }
 
     @Test

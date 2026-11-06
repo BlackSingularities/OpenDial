@@ -62,6 +62,8 @@ data class AppSettings(
     val speedDial: Map<Int, String> = emptyMap(),
     val quickReplies: List<String> = DEFAULT_REPLIES,
     val defaultSim: String? = null,
+    /** Karta SIM wybrana dla kontaktu: klucz kontaktu (LOOKUP_KEY) → id konta telefonicznego. */
+    val contactSim: Map<String, String> = emptyMap(),
     val onboardingDone: Boolean = false,
 ) {
     companion object {
@@ -122,6 +124,7 @@ class SettingsStore(context: Context) {
             put("speedDial", JSONObject().apply { s.speedDial.forEach { (k, v) -> put(k.toString(), v) } })
             put("quickReplies", JSONArray(s.quickReplies))
             put("defaultSim", s.defaultSim ?: "")
+            put("contactSim", JSONObject().apply { s.contactSim.forEach { (k, v) -> put(k, v) } })
             put("onboardingDone", s.onboardingDone)
         }
 
@@ -137,6 +140,10 @@ class SettingsStore(context: Context) {
             val speed = HashMap<Int, String>()
             o.optJSONObject("speedDial")?.let { sd ->
                 sd.keys().forEach { k -> k.toIntOrNull()?.let { n -> sd.optString(k).takeIf { it.isNotBlank() }?.let { speed[n] = it } } }
+            }
+            val contactSim = HashMap<String, String>()
+            o.optJSONObject("contactSim")?.let { cs ->
+                cs.keys().forEach { k -> cs.optString(k).takeIf { it.isNotBlank() }?.let { contactSim[k] = it } }
             }
             return AppSettings(
                 language = e("language", d.language),
@@ -177,6 +184,7 @@ class SettingsStore(context: Context) {
                 speedDial = speed,
                 quickReplies = list("quickReplies", d.quickReplies).ifEmpty { d.quickReplies },
                 defaultSim = o.optString("defaultSim", "").ifBlank { null },
+                contactSim = contactSim,
                 onboardingDone = b("onboardingDone", d.onboardingDone),
             )
         }

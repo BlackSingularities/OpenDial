@@ -53,6 +53,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -418,6 +422,11 @@ fun DarkField(
     leading: ImageVector? = null,
     trailing: @Composable (() -> Unit)? = null,
     password: Boolean = false,
+    imeAction: ImeAction = ImeAction.Default,
+    capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
+    focusRequester: FocusRequester? = null,
+    isError: Boolean = false,
+    visualTransformation: VisualTransformation? = null,
 ) {
     OutlinedTextField(
         value = value,
@@ -425,11 +434,20 @@ fun DarkField(
         label = { Text(label) },
         singleLine = singleLine,
         minLines = if (singleLine) 1 else minLines,
-        keyboardOptions = KeyboardOptions(keyboardType = if (password) KeyboardType.Password else keyboard),
-        visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
+        keyboardOptions = KeyboardOptions(
+            keyboardType = if (password) KeyboardType.Password else keyboard,
+            imeAction = imeAction,
+            capitalization = capitalization,
+        ),
+        visualTransformation = when {
+            password -> PasswordVisualTransformation()
+            visualTransformation != null -> visualTransformation
+            else -> VisualTransformation.None
+        },
+        isError = isError,
         leadingIcon = leading?.let { { Icon(it, null, tint = Palette.TextDim) } },
         trailingIcon = trailing,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
         shape = RoundedCornerShape(14.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = Palette.Fg,
@@ -439,6 +457,11 @@ fun DarkField(
             cursorColor = Palette.Fg,
             focusedTextColor = Palette.Fg,
             unfocusedTextColor = Palette.Fg,
+            errorBorderColor = Palette.Record,
+            errorLabelColor = Palette.Record,
+            errorCursorColor = Palette.Record,
+            errorTextColor = Palette.Fg,
+            errorLeadingIconColor = Palette.Record,
         ),
     )
 }

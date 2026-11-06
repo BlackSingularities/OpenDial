@@ -1,13 +1,15 @@
 package com.blacksingularities.opencall.ui.screens
 
-import android.content.Intent
-import android.media.RingtoneManager
 import android.net.Uri
+import android.provider.ContactsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContract
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,27 +17,38 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.CallSplit
 import androidx.compose.material.icons.automirrored.rounded.Message
+import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.Business
 import androidx.compose.material.icons.rounded.Cake
 import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.Chat
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Dialpad
+import androidx.compose.material.icons.rounded.Directions
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Email
+import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.automirrored.rounded.Notes
+import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Place
+import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.SimCard
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.Voicemail
-import androidx.compose.material.icons.rounded.Work
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,19 +61,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.blacksingularities.opencall.call.Dialer
 import com.blacksingularities.opencall.data.CallKind
 import com.blacksingularities.opencall.data.ContactDetails
 import com.blacksingularities.opencall.data.PhoneText
+import com.blacksingularities.opencall.data.RawRef
+import com.blacksingularities.opencall.data.VCard
 import com.blacksingularities.opencall.i18n.tr
 import com.blacksingularities.opencall.ui.AppViewModel
 import com.blacksingularities.opencall.ui.Avatar
 import com.blacksingularities.opencall.ui.Format
+import com.blacksingularities.opencall.ui.Route
 import com.blacksingularities.opencall.ui.components.ActionRow
 import com.blacksingularities.opencall.ui.components.ChoiceDialog
 import com.blacksingularities.opencall.ui.components.DarkDialog
@@ -71,34 +88,40 @@ import com.blacksingularities.opencall.ui.components.RoundIcon
 import com.blacksingularities.opencall.ui.components.SwitchRow
 import com.blacksingularities.opencall.ui.theme.Palette
 import com.blacksingularities.opencall.ui.theme.reactive
+import kotlin.math.absoluteValue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Wybór dzwonka kontaktu (systemowy selektor dzwonków). */
-private class PickRingtone : ActivityResultContract<String?, Uri?>() {
-    override fun createIntent(context: android.content.Context, input: String?) = Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
-        .putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE)
-        .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
-        .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, true)
-        .putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, input?.let { Uri.parse(it) })
-
-    override fun parseResult(resultCode: Int, intent: Intent?): Uri? {
-        if (resultCode != android.app.Activity.RESULT_OK) return null
-        @Suppress("DEPRECATION")
-        return intent?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI) ?: Uri.EMPTY
-    }
-}
+/** Ile wpisów historii widać przed „Pokaż wszystkie”. */
+private const val HISTORY_PREVIEW = 10
 
 /**
- * Szczegóły kontaktu ([contactId]) albo samego numeru spoza kontaktów ([number]): akcje,
- * numery, e-maile, adresy, historia połączeń, blokowanie, dzwonek i poczta głosowa.
+ * Szczegóły kontaktu ([contactId]) albo samego numeru spoza kontaktów ([number]): nagłówek z
+ * plakietkami, szybkie akcje, numery, e-maile, adresy, daty, relacje, komunikatory, SIP, strony,
+ * grupy, notatka, statystyki i historia połączeń, połączone kontakty oraz opcje.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ContactInfoScreen(vm: AppViewModel, contactId: Long?, number: String?) {
     var details by remember(contactId) { mutableStateOf<ContactDetails?>(null) }
+    var raws by remember(contactId) { mutableStateOf<List<RawRef>>(emptyList()) }
     var reloadKey by remember { mutableIntStateOf(0) }
+    var lastLookup by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(contactId, reloadKey, vm.contacts) {
-        if (contactId != null) details = withContext(Dispatchers.IO) { vm.contactsRepo.details(contactId) }
+        if (contactId == null) return@LaunchedEffect
+        val loaded = withContext(Dispatchers.IO) { runCatching { vm.contactsRepo.details(contactId) }.getOrNull() }
+        if (loaded == null) {
+            // Po scaleniu, rozłączeniu albo przeniesieniu kontakt mógł dostać nowe id – szukamy go po kluczu.
+            val key = lastLookup ?: return@LaunchedEffect
+            val newId = withContext(Dispatchers.IO) {
+                vm.contactsRepo.idForLookupUri(Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_LOOKUP_URI, key))
+            }
+            if (newId != null && newId != contactId) vm.replaceTop(Route.ContactInfo(newId))
+            return@LaunchedEffect
+        }
+        details = loaded
+        lastLookup = loaded.lookupKey.takeIf { it.isNotEmpty() }
+        raws = withContext(Dispatchers.IO) { runCatching { vm.contactsRepo.rawContacts(contactId) }.getOrDefault(emptyList()) }
     }
     val d = details
     if (contactId != null && d == null) {
@@ -110,10 +133,19 @@ fun ContactInfoScreen(vm: AppViewModel, contactId: Long?, number: String?) {
     val history = remember(vm.calls, numbers) {
         vm.calls.filter { e -> numbers.any { PhoneText.sameNumber(it, e.number) } }
     }
+    val video = remember { Dialer.supportsVideo(vm.getApplication<android.app.Application>()) }
     var pickNumber by remember { mutableStateOf<((String) -> Unit)?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
     var addTo by remember { mutableStateOf(false) }
     var numberMenu by remember { mutableStateOf<String?>(null) }
+    var fieldMenu by remember { mutableStateOf<String?>(null) }
+    var showQr by remember { mutableStateOf(false) }
+    var qrText by remember { mutableStateOf<String?>(null) }
+    var allHistory by remember { mutableStateOf(false) }
+    var noteOpen by remember { mutableStateOf(false) }
+    var pickSim by remember { mutableStateOf(false) }
+    var linkWith by remember { mutableStateOf(false) }
+    var splitRaw by remember { mutableStateOf<RawRef?>(null) }
     val ringtone = rememberLauncherForActivityResult(PickRingtone()) { uri ->
         if (uri != null && d != null) {
             vm.contactsRepo.setRingtone(d.id, uri.takeIf { it != Uri.EMPTY }?.toString())
@@ -121,12 +153,22 @@ fun ContactInfoScreen(vm: AppViewModel, contactId: Long?, number: String?) {
             vm.toast(tr("Dzwonek ustawiony"))
         }
     }
+    LaunchedEffect(showQr) {
+        if (!showQr || d == null) return@LaunchedEffect
+        qrText = withContext(Dispatchers.IO) { runCatching { vm.contactsRepo.draft(d.id) }.getOrNull()?.let { VCard.write(it.copy(note = "")) } }
+        if (qrText == null) {
+            showQr = false
+            vm.toast(tr("Nie udało się przygotować kodu QR"))
+        }
+    }
 
-    /** Akcja na numerze; przy kilku numerach – najpierw wybór. */
+    /** Akcja na numerze; przy kilku numerach – najpierw wybór (domyślny numer od razu). */
     fun withNumber(f: (String) -> Unit) {
-        when (numbers.size) {
-            0 -> Unit
-            1 -> f(numbers[0])
+        val primary = d?.phones?.firstOrNull { it.primary }?.number
+        when {
+            numbers.isEmpty() -> Unit
+            numbers.size == 1 -> f(numbers[0])
+            primary != null -> f(primary)
             else -> pickNumber = f
         }
     }
@@ -144,98 +186,261 @@ fun ContactInfoScreen(vm: AppViewModel, contactId: Long?, number: String?) {
             }
         },
     ) {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Avatar(d?.name, d?.photoUri, 112.dp)
+        // ---- Nagłówek ---------------------------------------------------------------------------
+        val tintLabel = d?.name?.trim().orEmpty()
+        val tint = Palette.AvatarTints[(tintLabel.hashCode().absoluteValue) % Palette.AvatarTints.size]
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(28.dp))
+                .background(tint.copy(alpha = 0.45f))
+                .padding(vertical = 20.dp, horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Avatar(d?.name, d?.photoUri, 128.dp)
             Spacer(Modifier.height(12.dp))
-            Text(title, fontSize = 28.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-            val sub = listOfNotNull(d?.nickname?.let { "„$it”" }, listOfNotNull(d?.title, d?.organization).joinToString(", ").ifBlank { null })
-            if (sub.isNotEmpty()) Text(sub.joinToString(" · "), fontSize = 14.sp, color = Palette.TextDim, textAlign = TextAlign.Center)
+            Text(title, fontSize = 28.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, lineHeight = 32.sp)
+            d?.phoneticName?.let { Text(it, fontSize = 13.sp, color = Palette.TextDim, textAlign = TextAlign.Center) }
+            d?.nickname?.let { Text("„$it”", fontSize = 14.sp, color = Palette.TextDim, textAlign = TextAlign.Center) }
+            val work = listOfNotNull(d?.title, d?.organization, d?.department).joinToString(" · ")
+            if (work.isNotBlank()) Text(work, fontSize = 14.sp, color = Palette.TextDim, textAlign = TextAlign.Center)
             if (d == null) {
                 val loc = history.firstNotNullOfOrNull { it.location }
                 if (loc != null) Text(loc, fontSize = 14.sp, color = Palette.TextDim)
             }
-            if (numbers.any { vm.isBlocked(it) }) {
-                Text(tr("Zablokowany"), color = Palette.Record, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
-            }
-            Spacer(Modifier.height(16.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                BigAction(Icons.Rounded.Call, tr("Zadzwoń"), enabled = numbers.isNotEmpty()) { withNumber { vm.call(it, d?.name) } }
-                BigAction(Icons.AutoMirrored.Rounded.Message, tr("SMS"), enabled = numbers.isNotEmpty()) { withNumber { vm.sms(it) } }
-                if (d != null && d.emails.isNotEmpty()) {
-                    BigAction(Icons.Rounded.Email, tr("E-mail")) { vm.email(d.emails.first().value) }
-                }
-                BigAction(Icons.Rounded.Share, tr("Udostępnij")) {
-                    if (d != null) vm.shareVCard(d.id) else vm.shareText(number ?: "")
+            val blocked = numbers.any { vm.isBlocked(it) }
+            val badges = d != null || blocked
+            if (badges) {
+                Spacer(Modifier.height(10.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    d?.accountRefs?.map { accountBadge(it) }?.distinct()?.forEach { Badge(it, icon = null) }
+                    if (d?.starred == true) Badge(tr("Ulubiony"), icon = Icons.Rounded.Star)
+                    if (blocked) Badge(tr("Zablokowany"), Palette.Record, Icons.Rounded.Block)
+                    if (d?.sendToVoicemail == true) Badge(tr("Na pocztę głosową"), icon = Icons.Rounded.Voicemail)
+                    if (d?.customRingtone != null) Badge(tr("Własny dzwonek"), icon = Icons.Rounded.MusicNote)
                 }
             }
         }
 
+        // ---- Szybkie akcje ----------------------------------------------------------------------
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
+        ) {
+            BigAction(Icons.Rounded.Call, tr("Zadzwoń"), enabled = numbers.isNotEmpty()) { withNumber { vm.call(it, d?.name) } }
+            BigAction(Icons.AutoMirrored.Rounded.Message, tr("SMS"), enabled = numbers.isNotEmpty()) { withNumber { vm.sms(it) } }
+            if (video && numbers.isNotEmpty()) BigAction(Icons.Rounded.Videocam, tr("Wideo")) { withNumber { vm.videoCall(it) } }
+            if (d != null && d.emails.isNotEmpty()) {
+                BigAction(Icons.Rounded.Email, tr("E-mail")) { vm.email((d.emails.firstOrNull { it.primary } ?: d.emails.first()).value) }
+            }
+            if (d != null && d.addresses.isNotEmpty()) BigAction(Icons.Rounded.Directions, tr("Trasa")) { vm.navigate(d.addresses.first().value) }
+            if (d != null && d.ims.isNotEmpty()) {
+                val im = d.ims.first()
+                BigAction(Icons.Rounded.Chat, Format.imType(im.type, im.label)) { vm.openIm(im.type, im.label, im.value) }
+            }
+            BigAction(Icons.Rounded.Share, tr("Udostępnij")) {
+                if (d != null) vm.shareVCard(d.id) else vm.shareText(number ?: "")
+            }
+            if (d != null) BigAction(Icons.Rounded.QrCode2, tr("Kod QR")) { showQr = true }
+        }
+
+        // ---- Numery -----------------------------------------------------------------------------
         if (numbers.isNotEmpty()) {
+            val lastUsed = history.firstOrNull()?.number
             Group(tr("Numery")) {
                 if (d != null) {
                     d.phones.forEach { p ->
-                        NumberRow(vm, p.number, Format.phoneType(p.type, p.label) + if (p.primary) " · " + tr("domyślny") else "", onLong = { numberMenu = p.number })
+                        val loc = history.firstOrNull { PhoneText.sameNumber(it.number, p.number) }?.location
+                        val parts = listOfNotNull(
+                            Format.phoneType(p.type, p.label),
+                            tr("domyślny").takeIf { p.primary && d.phones.size > 1 },
+                            loc,
+                            tr("ostatnio używany").takeIf { d.phones.size > 1 && lastUsed != null && PhoneText.sameNumber(lastUsed, p.number) },
+                        )
+                        NumberRow(vm, p.number, parts.joinToString(" · "), video, onLong = { numberMenu = p.number })
                     }
                 } else {
-                    NumberRow(vm, number!!, history.firstNotNullOfOrNull { it.location } ?: tr("Numer"), onLong = { numberMenu = number })
+                    NumberRow(vm, number!!, history.firstNotNullOfOrNull { it.location } ?: tr("Numer"), video, onLong = { numberMenu = number })
+                }
+                if (d != null && vm.sims.size > 1) {
+                    val chosen = vm.settings.contactSim[d.lookupKey]?.let { id -> vm.sims.firstOrNull { it.id == id } }
+                    ActionRow(Icons.Rounded.SimCard, tr("Dzwoń z karty"), chosen?.label ?: tr("Jak w ustawieniach")) { pickSim = true }
                 }
             }
         }
+
         if (d != null) {
             if (d.emails.isNotEmpty()) {
                 Group(tr("E-mail")) {
                     d.emails.forEach { e ->
-                        ActionRow(Icons.Rounded.Email, e.value, Format.emailType(e.type, e.label), onLongClick = { vm.copy(e.value) }) { vm.email(e.value) }
+                        val sub = Format.emailType(e.type, e.label) + if (e.primary && d.emails.size > 1) " · " + tr("domyślny") else ""
+                        ActionRow(Icons.Rounded.Email, e.value, sub, onLongClick = { fieldMenu = e.value }) { vm.email(e.value) }
                     }
                 }
             }
             if (d.addresses.isNotEmpty()) {
                 Group(tr("Adres")) {
-                    d.addresses.forEach { a -> ActionRow(Icons.Rounded.Place, a.value, tr("Pokaż na mapie"), onLongClick = { vm.copy(a.value) }) { vm.map(a.value) } }
+                    d.addresses.forEach { a ->
+                        ActionRow(
+                            Icons.Rounded.Place, a.value, Format.postalType(a.type, a.label),
+                            onLongClick = { fieldMenu = a.value },
+                            trailing = { RoundIcon(Icons.Rounded.Directions, tr("Trasa"), size = 36.dp) { vm.navigate(a.value) } },
+                        ) { vm.map(a.value) }
+                    }
                 }
             }
-            val info = buildList<Triple<ImageVector, String, String>> {
-                d.birthday?.let { add(Triple(Icons.Rounded.Cake, tr("Urodziny"), Format.birthday(it))) }
-                d.organization?.let { add(Triple(Icons.Rounded.Work, tr("Firma"), listOfNotNull(it, d.title).joinToString(" · "))) }
-                d.websites.forEach { add(Triple(Icons.Rounded.Language, tr("Strona"), it)) }
-                d.note?.let { add(Triple(Icons.AutoMirrored.Rounded.Notes, tr("Notatka"), it)) }
+            val work = listOfNotNull(d.organization, d.title, d.department, d.jobDescription)
+            if (work.isNotEmpty()) {
+                Group(tr("Praca")) {
+                    d.organization?.let { ActionRow(Icons.Rounded.Business, it, listOfNotNull(d.title, d.department).joinToString(" · ").ifBlank { tr("Firma") }, onLongClick = { fieldMenu = it }) { fieldMenu = it } }
+                    if (d.organization == null && d.title != null) ActionRow(Icons.Rounded.Business, d.title, tr("Stanowisko"), onLongClick = { fieldMenu = d.title }) { fieldMenu = d.title }
+                    d.jobDescription?.let { ActionRow(Icons.AutoMirrored.Rounded.Notes, it, tr("Opis stanowiska"), onLongClick = { fieldMenu = it }) { fieldMenu = it } }
+                }
             }
-            if (info.isNotEmpty()) {
-                Group(tr("Informacje")) {
-                    info.forEach { (icon, label, value) ->
-                        ActionRow(icon, value, label, onLongClick = { vm.copy(value) }) { if (icon == Icons.Rounded.Language) vm.web(value) else vm.copy(value) }
+            if (d.birthday != null || d.events.isNotEmpty()) {
+                Group(tr("Daty")) {
+                    d.birthday?.let { b ->
+                        val sub = listOfNotNull(tr("Urodziny"), Format.countdown(b, birthday = true)).joinToString(" · ")
+                        ActionRow(Icons.Rounded.Cake, Format.eventDate(b), sub, onLongClick = { fieldMenu = Format.eventDate(b) }) { fieldMenu = Format.eventDate(b) }
+                    }
+                    d.events.forEach { e ->
+                        val sub = listOfNotNull(Format.eventType(e.type, e.label), Format.countdown(e.value, birthday = false)).joinToString(" · ")
+                        ActionRow(Icons.Rounded.Event, Format.eventDate(e.value), sub, onLongClick = { fieldMenu = Format.eventDate(e.value) }) { fieldMenu = Format.eventDate(e.value) }
+                    }
+                }
+            }
+            if (d.relations.isNotEmpty()) {
+                Group(tr("Relacje")) {
+                    d.relations.forEach { r ->
+                        val linked = vm.contacts.firstOrNull { it.id != d.id && it.name.trim().equals(r.value.trim(), ignoreCase = true) }
+                        ActionRow(
+                            if (linked != null) Icons.Rounded.Person else Icons.Rounded.People,
+                            r.value,
+                            Format.relationType(r.type, r.label) + if (linked != null) " · " + tr("w kontaktach") else "",
+                            onLongClick = { fieldMenu = r.value },
+                        ) { if (linked != null) vm.push(Route.ContactInfo(linked.id)) else fieldMenu = r.value }
+                    }
+                }
+            }
+            if (d.ims.isNotEmpty() || d.sip.isNotEmpty()) {
+                Group(tr("Komunikatory")) {
+                    d.ims.forEach { im ->
+                        ActionRow(Icons.Rounded.Chat, im.value, Format.imType(im.type, im.label), onLongClick = { fieldMenu = im.value }) { vm.openIm(im.type, im.label, im.value) }
+                    }
+                    d.sip.forEach { s ->
+                        ActionRow(Icons.Rounded.Dialpad, s.value, tr("SIP") + " · " + Format.sipType(s.type, s.label), onLongClick = { fieldMenu = s.value }) { vm.sipCall(s.value) }
+                    }
+                }
+            }
+            if (d.websites.isNotEmpty()) {
+                Group(tr("Strony WWW")) {
+                    d.websites.forEach { w ->
+                        ActionRow(Icons.Rounded.Language, w.value, Format.websiteType(w.type, w.label), onLongClick = { fieldMenu = w.value }) { vm.web(w.value) }
+                    }
+                }
+            }
+            if (d.groups.isNotEmpty()) {
+                Group(tr("Grupy")) {
+                    FlowRow(Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        d.groups.forEach { Badge(it) }
+                    }
+                }
+            }
+            d.note?.let { note ->
+                Group(tr("Notatka")) {
+                    val long = note.length > 180 || note.lines().size > 4
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .reactive(tr("Notatka"), pressScale = 0.99f, onLongPress = { fieldMenu = note }) { if (long) noteOpen = !noteOpen }
+                            .padding(12.dp),
+                    ) {
+                        Text(
+                            note,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
+                            maxLines = if (noteOpen || !long) Int.MAX_VALUE else 4,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (long) Text(if (noteOpen) tr("Zwiń") else tr("Pokaż całość"), fontSize = 12.sp, color = Palette.TextDim, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
                     }
                 }
             }
         }
 
+        // ---- Statystyki i historia ------------------------------------------------------------
         if (history.isNotEmpty()) {
-            Group(tr("Historia połączeń · {0}", history.size)) {
-                history.take(15).forEach { e ->
+            Group(tr("Rozmowy")) {
+                val incoming = history.count { it.kind == CallKind.INCOMING }
+                val outgoing = history.count { it.kind == CallKind.OUTGOING }
+                val missed = history.count { it.kind == CallKind.MISSED || it.kind == CallKind.REJECTED }
+                val talk = history.sumOf { it.durationSec }
+                val answered = history.filter { it.durationSec > 0 }
+                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    StatTile(history.size.toString(), tr("połączeń"), Modifier.weight(1f))
+                    StatTile(incoming.toString(), tr("przychodzące"), Modifier.weight(1f))
+                    StatTile(outgoing.toString(), tr("wychodzące"), Modifier.weight(1f))
+                    StatTile(missed.toString(), tr("nieodebrane"), Modifier.weight(1f), danger = missed > 0)
+                }
+                val lines = listOfNotNull(
+                    tr("Łącznie rozmów: {0}", PhoneText.durationShort(talk, tr("h"), tr("min"), tr("s"))).takeIf { talk > 0 },
+                    tr("Średnio: {0}", PhoneText.durationShort(talk / answered.size, tr("h"), tr("min"), tr("s"))).takeIf { answered.isNotEmpty() },
+                    tr("Ostatni kontakt: {0}", Format.relative(history.first().date)),
+                )
+                Text(lines.joinToString(" · "), fontSize = 12.sp, color = Palette.TextDim, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+                val visible = if (allHistory) history else history.take(HISTORY_PREVIEW)
+                visible.forEach { e ->
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-                        val missed = e.kind == CallKind.MISSED || e.kind == CallKind.REJECTED
-                        Icon(kindIcon(e.kind), null, tint = if (missed) Palette.Record else Palette.TextDim, modifier = Modifier.size(18.dp))
+                        val isMissed = e.kind == CallKind.MISSED || e.kind == CallKind.REJECTED
+                        Icon(kindIcon(e.kind), null, tint = if (isMissed) Palette.Record else Palette.TextDim, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(Format.kind(e.kind), fontSize = 14.sp, color = if (missed) Palette.Record else Palette.Fg)
+                            Text(Format.kind(e.kind) + if (e.video) " · " + tr("wideo") else "", fontSize = 14.sp, color = if (isMissed) Palette.Record else Palette.Fg)
                             Text(Format.full(e.date) + if (numbers.size > 1) " · " + PhoneText.pretty(e.number) else "", fontSize = 11.sp, color = Palette.TextDim)
                         }
                         if (e.durationSec > 0) Text(PhoneText.duration(e.durationSec), fontSize = 13.sp, color = Palette.TextDim)
                     }
                 }
-                if (history.size > 15) Text(tr("…i {0} wcześniejszych", history.size - 15), fontSize = 12.sp, color = Palette.TextDim, modifier = Modifier.padding(12.dp))
-                val talk = history.sumOf { it.durationSec }
-                if (talk > 0) {
+                if (history.size > HISTORY_PREVIEW) {
                     Text(
-                        tr("Łącznie rozmów: {0}", PhoneText.durationShort(talk, tr("h"), tr("min"), tr("s"))),
-                        fontSize = 12.sp,
+                        if (allHistory) tr("Zwiń historię") else tr("Pokaż wszystkie ({0})", history.size),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
                         color = Palette.TextDim,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .reactive(tr("Historia połączeń"), pressScale = 0.98f) { allHistory = !allHistory }
+                            .padding(12.dp),
                     )
                 }
             }
         }
 
+        // ---- Połączone kontakty -------------------------------------------------------------------
+        if (d != null) {
+            Group(tr("Połączone kontakty")) {
+                if (raws.size > 1) {
+                    raws.forEach { r ->
+                        ActionRow(
+                            accountIcon(r.account),
+                            r.name.ifBlank { d.name },
+                            accountBadge(r.account) + (r.account.name?.takeIf { !r.account.local && !r.account.sim && it != accountBadge(r.account) }?.let { " · $it" } ?: ""),
+                            trailing = { RoundIcon(Icons.AutoMirrored.Rounded.CallSplit, tr("Rozłącz"), size = 36.dp) { splitRaw = r } },
+                        ) { splitRaw = r }
+                    }
+                } else {
+                    Text(
+                        tr("Kontakt pochodzi z jednego źródła: {0}.", raws.firstOrNull()?.account?.let { accountLabel(it) } ?: tr("Telefon")),
+                        fontSize = 12.sp,
+                        color = Palette.TextDim,
+                        modifier = Modifier.padding(12.dp),
+                    )
+                }
+                ActionRow(Icons.Rounded.Link, tr("Połącz z innym kontaktem"), tr("Np. ta sama osoba zapisana dwa razy")) { linkWith = true }
+            }
+        }
+
+        // ---- Opcje --------------------------------------------------------------------------------
         Group(tr("Opcje")) {
             if (d != null) {
                 ActionRow(Icons.Rounded.MusicNote, tr("Dzwonek"), if (d.customRingtone != null) ringtoneName(vm, d.customRingtone) else tr("Domyślny")) {
@@ -246,6 +451,7 @@ fun ContactInfoScreen(vm: AppViewModel, contactId: Long?, number: String?) {
                     details = d.copy(sendToVoicemail = on)
                 }
                 ActionRow(Icons.Rounded.Share, tr("Udostępnij kontakt"), tr("Jako plik vCard")) { vm.shareVCard(d.id) }
+                ActionRow(Icons.Rounded.QrCode2, tr("Kod QR"), tr("Do zeskanowania drugim telefonem")) { showQr = true }
             } else if (number != null) {
                 ActionRow(Icons.Rounded.PersonAdd, tr("Utwórz kontakt")) { vm.newContact(number) }
                 ActionRow(Icons.Rounded.Person, tr("Dodaj do istniejącego kontaktu")) { addTo = true }
@@ -270,6 +476,8 @@ fun ContactInfoScreen(vm: AppViewModel, contactId: Long?, number: String?) {
         Spacer(Modifier.height(16.dp))
     }
 
+    // ---- Okna -------------------------------------------------------------------------------------
+
     pickNumber?.let { f ->
         ChoiceDialog(
             tr("Wybierz numer"),
@@ -281,28 +489,76 @@ fun ContactInfoScreen(vm: AppViewModel, contactId: Long?, number: String?) {
         }
     }
     numberMenu?.let { n ->
+        val canPrimary = d != null && d.phones.size > 1
         ChoiceDialog(
             PhoneText.pretty(n),
             buildList {
                 add(Icons.Rounded.ContentCopy to tr("Kopiuj numer"))
+                add(Icons.Rounded.Share to tr("Udostępnij"))
                 add(Icons.Rounded.Call to tr("Edytuj przed połączeniem"))
-                if (d != null && d.phones.size > 1) add(Icons.Rounded.Star to tr("Ustaw jako domyślny"))
+                if (canPrimary) add(Icons.Rounded.Star to tr("Ustaw jako domyślny"))
             },
             onDismiss = { numberMenu = null },
         ) { i ->
             numberMenu = null
             when (i) {
                 0 -> vm.copy(n)
-                1 -> {
+                1 -> vm.shareText(PhoneText.pretty(n))
+                2 -> {
                     vm.dialed = PhoneText.digits(n)
                     vm.stack.clear()
                     vm.openKeypad()
                 }
-                2 -> if (d != null) {
+                3 -> if (d != null) {
                     vm.contactsRepo.setPrimaryNumber(d.id, n)
                     reloadKey++
                 }
             }
+        }
+    }
+    fieldMenu?.let { v -> FieldMenu(vm, v) { fieldMenu = null } }
+    if (showQr && d != null) {
+        val text = qrText
+        if (text != null) {
+            QrDialog(d.name, text) {
+                showQr = false
+                qrText = null
+            }
+        }
+    }
+    if (pickSim && d != null) {
+        ChoiceDialog(
+            tr("Dzwoń z karty"),
+            listOf(Icons.Rounded.SimCard to tr("Jak w ustawieniach")) + vm.sims.map { Icons.Rounded.SimCard to (it.label + (it.number?.let { n -> " · " + PhoneText.pretty(n) } ?: "")) },
+            onDismiss = { pickSim = false },
+            subtitle = tr("Karta zapamiętana dla tej osoby, także przy dzwonieniu z listy."),
+        ) { i ->
+            pickSim = false
+            vm.setContactSim(d.lookupKey, if (i == 0) null else vm.sims[i - 1].id)
+        }
+    }
+    if (linkWith && d != null) {
+        val list = vm.contacts.filter { it.id != d.id }.take(300)
+        ChoiceDialog(tr("Połącz z kontaktem"), list.map { Icons.Rounded.Person to it.name }, onDismiss = { linkWith = false }, subtitle = tr("Oba wpisy będą widoczne jako jeden kontakt. Dane nie są usuwane.")) { i ->
+            linkWith = false
+            vm.mergeContacts(listOf(d.id, list[i].id))
+            reloadKey++
+        }
+    }
+    splitRaw?.let { r ->
+        if (d == null) return@let
+        DarkDialog(
+            tr("Rozłączyć „{0}”?", accountBadge(r.account)),
+            onDismiss = { splitRaw = null },
+            buttons = {
+                PillButton(tr("Anuluj"), primary = false) { splitRaw = null }
+                PillButton(tr("Rozłącz")) {
+                    splitRaw = null
+                    vm.splitContact(d.id, r.id) { reloadKey++ }
+                }
+            },
+        ) {
+            Text(tr("Ten wpis stanie się osobnym kontaktem. Nic nie zostanie usunięte."), color = Palette.TextDim, fontSize = 13.sp)
         }
     }
     if (addTo && number != null) {
@@ -330,21 +586,34 @@ fun ContactInfoScreen(vm: AppViewModel, contactId: Long?, number: String?) {
     }
 }
 
-private fun ringtoneName(vm: AppViewModel, uri: String): String = runCatching {
-    RingtoneManager.getRingtone(vm.getApplication(), Uri.parse(uri))?.getTitle(vm.getApplication())
-}.getOrNull() ?: tr("Własny")
-
 @Composable
-private fun NumberRow(vm: AppViewModel, number: String, label: String, onLong: () -> Unit) {
+private fun NumberRow(vm: AppViewModel, number: String, label: String, video: Boolean, onLong: () -> Unit) {
     ActionRow(
         Icons.Rounded.Call,
         PhoneText.pretty(number),
         label,
         onLongClick = onLong,
         trailing = {
-            RoundIcon(Icons.AutoMirrored.Rounded.Message, tr("SMS"), size = 36.dp) { vm.sms(number) }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (video) RoundIcon(Icons.Rounded.Videocam, tr("Wideo"), size = 36.dp) { vm.videoCall(number) }
+                RoundIcon(Icons.AutoMirrored.Rounded.Message, tr("SMS"), size = 36.dp) { vm.sms(number) }
+            }
         },
     ) { vm.call(number) }
+}
+
+@Composable
+private fun StatTile(value: String, label: String, modifier: Modifier = Modifier, danger: Boolean = false) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(Palette.Fg.copy(alpha = 0.06f))
+            .padding(vertical = 10.dp, horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = if (danger) Palette.Record else Palette.Fg)
+        Text(label, fontSize = 10.sp, color = Palette.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
 }
 
 @Composable
@@ -352,16 +621,16 @@ private fun BigAction(icon: ImageVector, label: String, enabled: Boolean = true,
     Column(
         Modifier
             .reactive(label, enabled, onClick = onClick)
-            .width(76.dp),
+            .width(72.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        androidx.compose.foundation.layout.Box(
-            Modifier.size(54.dp).clip(RoundedCornerShape(18.dp)).background(Palette.Fg.copy(alpha = 0.09f)),
+        Box(
+            Modifier.size(52.dp).clip(RoundedCornerShape(18.dp)).background(Palette.Fg.copy(alpha = if (enabled) 0.09f else 0.04f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, null, tint = Palette.Fg, modifier = Modifier.size(24.dp))
+            Icon(icon, null, tint = if (enabled) Palette.Fg else Palette.TextFaint, modifier = Modifier.size(24.dp))
         }
         Spacer(Modifier.height(6.dp))
-        Text(label, fontSize = 12.sp, color = Palette.TextDim)
+        Text(label, fontSize = 12.sp, color = Palette.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

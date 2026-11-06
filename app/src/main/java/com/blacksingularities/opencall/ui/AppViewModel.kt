@@ -73,7 +73,7 @@ sealed interface Route {
 }
 
 /** Połączenie czekające na wybór karty SIM albo potwierdzenie. */
-data class PendingCall(val number: String, val name: String?, val needsSim: Boolean, val needsConfirm: Boolean)
+data class PendingCall(val number: String, val name: String?, val needsSim: Boolean, val needsConfirm: Boolean, val simId: String? = null)
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val ctx get() = getApplication<Application>()
@@ -471,14 +471,43 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             place(n, null)
             return
         }
-        val needsSim = simId == null && sims.size > 1 && settings.defaultSim == null
+        // Karta zapamiętana dla kontaktu („Dzwoń zawsze z…”) wygrywa z kartą domyślną.
+        val sim = simId ?: contactSimFor(n)
+        val needsSim = sim == null && sims.size > 1 && settings.defaultSim == null
         val needsConfirm = settings.confirmCall && pendingCall == null
         if (needsSim || needsConfirm) {
-            pendingCall = PendingCall(n, name, needsSim, needsConfirm)
+            pendingCall = PendingCall(n, name, needsSim, needsConfirm, sim)
             return
         }
         pendingCall = null
-        place(n, simId ?: settings.defaultSim)
+        place(n, sim ?: settings.defaultSim)
+    }
+
+    /** Karta SIM zapamiętana dla kontaktu z tym numerem – tylko gdy nadal jest w telefonie. */
+    fun contactSimFor(number: String): String? {
+        val key = contactFor(number)?.lookupKey?.takeIf { it.isNotEmpty() } ?: return null
+        return settings.contactSim[key]?.takeIf { id -> sims.any { it.id == id } }
+    }
+
+    fun setContactSim(lookupKey: String, simId: String?) {
+        if (lookupKey.isEmpty()) return
+        updateSettings { s -> s.copy(contactSim = if (simId == null) s.contactSim - lookupKey else s.contactSim + (lookupKey to simId)) }
+    }
+
+    /** Rozmowa wideo (gdy sieć i telefon ją obsługują). */
+    fun videoCall(number: String) {
+        val n = number.trim()
+        if (n.isEmpty()) return
+        if (!Dialer.call(ctx, n, contactSimFor(n) ?: settings.defaultSim, video = true)) {
+            openIntent(Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", n, null)))
+        }
+    }
+
+    /** Połączenie z adresem SIP przez konto SIP telefonu (system wybiera konto obsługujące „sip:”). */
+    fun sipCall(address: String) {
+        val a = address.trim().removePrefix("sip:")
+        if (a.isEmpty()) return
+        if (!Dialer.callUri(ctx, Uri.fromParts("sip", a, null))) toast(tr("Telefon nie ma skonfigurowanego konta SIP"))
     }
 
     /** Okno informacyjne (IMEI itp.): tytuł i treść. */
@@ -513,7 +542,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun confirmPending(simId: String?) {
         val p = pendingCall ?: return
         pendingCall = null
-        place(p.number, simId ?: settings.defaultSim)
+        place(p.number, simId ?: p.simId ?: settings.defaultSim)
     }
 
     private fun place(number: String, simId: String?) {
@@ -549,6 +578,43 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun map(address: String) = openIntent(Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=" + Uri.encode(address))))
 
     fun web(url: String) = openIntent(Intent(Intent.ACTION_VIEW, Uri.parse(if (url.contains("://")) url else "https://$url")))
+
+    /** Trasa do adresu: nawigacja Google Maps, a bez niej – zwykła mapa. */
+    fun navigate(address: String) {
+        val nav = Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=" + Uri.encode(address)))
+        runCatching { ctx.startActivity(nav.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { map(address) }
+    }
+
+    /** Otwiera rozmowę w komunikatorze; nieznany komunikator – kopiuje identyfikator. */
+    fun openIm(protocol: Int, custom: String?, handle: String) {
+        val h = handle.trim()
+        val digits = PhoneText.digits(h).removePrefix("+")
+        val looksLikeNumber = h.isNotEmpty() && h.all { it.isDigit() || it in "+ -()" }
+        val uri = when (com.blacksingularities.opencall.data.ContactKinds.imName(protocol, custom).lowercase()) {
+            "whatsapp" -> if (looksLikeNumber) "https://wa.me/$digits" else null
+            "telegram" -> if (looksLikeNumber) "https://t.me/+$digits" else "https://t.me/" + h.removePrefix("@")
+            "signal" -> if (looksLikeNumber) "https://signal.me/#p/+$digits" else null
+            "skype" -> "skype:$h?chat"
+            "xmpp" -> "xmpp:$h"
+            else -> null
+        }
+        if (uri == null) {
+            copy(h)
+            return
+        }
+        openIntent(Intent(Intent.ACTION_VIEW, Uri.parse(uri)))
+    }
+
+    /** Udostępnianie dowolnej wartości z kontaktu i otwieranie jej w wybranej aplikacji. */
+    fun openWith(text: String) {
+        val view = when {
+            text.contains("@") && !text.contains(" ") -> Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:" + Uri.encode(text)))
+            text.startsWith("http", true) || text.startsWith("www.", true) -> Intent(Intent.ACTION_VIEW, Uri.parse(if (text.contains("://")) text else "https://$text"))
+            PhoneText.digits(text).length >= 3 && text.all { it.isDigit() || it in "+ -()" } -> Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", text, null))
+            else -> Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=" + Uri.encode(text)))
+        }
+        openIntent(Intent.createChooser(view, tr("Otwórz w…")))
+    }
 
     fun copy(text: String) {
         ctx.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("number", text))
@@ -686,6 +752,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             withContext(Dispatchers.IO) { runCatching { callLogRepo.clear() } }
             reload()
             toast(tr("Historia połączeń wyczyszczona"))
+        }
+    }
+
+    /** Odłącza surowy kontakt (np. wpis z innego konta) od kontaktu. */
+    fun splitContact(contactId: Long, rawId: Long, onDone: () -> Unit = {}) {
+        viewModelScope.launch {
+            val ok = withContext(Dispatchers.IO) { runCatching { contactsRepo.split(contactId, rawId) }.isSuccess }
+            reload()
+            toast(if (ok) tr("Kontakt rozłączony") else tr("Nie udało się rozłączyć kontaktu"))
+            onDone()
         }
     }
 

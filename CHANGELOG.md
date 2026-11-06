@@ -1,5 +1,20 @@
 # Zmiany
 
+## 1.0.4
+
+- Nowy edytor kontaktu: sekcje można zwijać, a rzadziej używane pola dochodzą przyciskiem „Dodaj pole”. Doszły daty (urodziny, rocznice i własne, wybierane w kalendarzu, także bez roku), relacje (małżonek, dziecko, przełożony… z wyborem osoby z kontaktów), komunikatory (Signal, Telegram, WhatsApp, Skype, XMPP i własne), adresy SIP, dział i opis stanowiska, wymowa imienia i nazwiska oraz grupy konta (z tworzeniem nowej grupy).
+- Adres w osobnych polach (ulica, kod, miejscowość, województwo, kraj) z rodzajem. Każdy numer, e-mail, adres, strona i data może mieć własną etykietę („Własny…”).
+- Domyślny numer i e-mail oznaczane gwiazdką, przesuwanie numerów, e-maili i stron w górę i w dół, numer formatowany w blokach podczas pisania. Ostrzeżenia przy błędnym numerze lub e-mailu oraz podpowiedź, gdy numer ma już inny kontakt.
+- Ulubiony, dzwonek i „Kieruj na pocztę głosową” także w edytorze. Zdjęcie: aparat, galeria, ponowne przycięcie, usunięcie (również dotychczasowego zdjęcia).
+- Istniejący kontakt można przenieść do innego konta (np. z pamięci telefonu do Google).
+- Widok kontaktu: nagłówek w kolorze kontaktu z plakietkami (konto, ulubiony, zablokowany, poczta głosowa, własny dzwonek), przewijany pasek akcji (rozmowa wideo, gdy telefon ją obsługuje, trasa do adresu, komunikator, kod QR), sekcje Praca, Daty z odliczaniem („za 12 dni · skończy 34 lata”), Relacje (otwierają powiązany kontakt), Komunikatory i SIP, Strony WWW, Grupy oraz zwijana notatka.
+- Statystyki rozmów z osobą (przychodzące, wychodzące, nieodebrane, łączny i średni czas, ostatni kontakt) i pełna historia po rozwinięciu.
+- Przy numerach: miejscowość lub operator z historii i znacznik „ostatnio używany”. Przy kilku kartach SIM „Dzwoń z karty” zapamiętuje kartę dla osoby – działa też przy dzwonieniu z list.
+- Przytrzymanie dowolnego pola: Kopiuj, Udostępnij, Otwórz w…
+- Sekcja „Połączone kontakty”: z jakich kont składa się kontakt, rozłączanie wpisu i łączenie z innym kontaktem.
+- Zapis nie usuwa danych, których OpenDial nie obsługuje (np. wpisów innych aplikacji), a członkostwa w grupach systemowych zostają nietknięte.
+- vCard (udostępnianie, kopia zapasowa, import) z nowymi polami: adres w polach, dział, rola, wymowa, rocznice i daty, relacje, komunikatory, SIP, rodzaj strony i oznaczenie domyślnego numeru.
+
 ## 1.0.3
 
 - Kontakt zapisany na karcie SIM od razu trafia do systemowych kontaktów, więc jego nazwę widać natychmiast w zakładce Telefon i w innych aplikacjach (np. SMS), a nie dopiero po restarcie telefonu.

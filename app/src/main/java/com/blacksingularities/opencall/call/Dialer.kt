@@ -91,16 +91,39 @@ object Dialer {
 
     /** Dzwoni przez Telecom (z wybraną kartą SIM, jeśli podana). Zwraca false, gdy brak uprawnienia. */
     @SuppressLint("MissingPermission")
-    fun call(context: Context, number: String, simId: String? = null): Boolean {
+    fun call(context: Context, number: String, simId: String? = null, video: Boolean = false): Boolean {
         if (!has(context, Manifest.permission.CALL_PHONE)) return false
         val uri = Uri.fromParts("tel", number.trim(), null)
         val extras = Bundle()
         val emergency = isEmergency(context, number)
         // Połączenie alarmowe: kartę (albo jej brak) wybiera system – działa też bez SIM i w obcej sieci.
         if (emergency) markEmergency(context) else handleFor(context, simId)?.let { extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, it) }
+        if (video && !emergency) extras.putInt(TelecomManager.EXTRA_START_CALL_WITH_VIDEO_STATE, android.telecom.VideoProfile.STATE_BIDIRECTIONAL)
         return runCatching {
             telecom(context).placeCall(uri, extras)
             true
+        }.getOrDefault(false)
+    }
+
+    /** Połączenie z dowolnym adresem (np. „sip:”) – konto wybiera system. */
+    @SuppressLint("MissingPermission")
+    fun callUri(context: Context, uri: Uri): Boolean {
+        if (!has(context, Manifest.permission.CALL_PHONE)) return false
+        return runCatching {
+            telecom(context).placeCall(uri, Bundle())
+            true
+        }.getOrDefault(false)
+    }
+
+    /** Czy któreś konto telefoniczne obsługuje rozmowy wideo (VT/ViLTE). */
+    @SuppressLint("MissingPermission")
+    fun supportsVideo(context: Context): Boolean {
+        if (!has(context, Manifest.permission.READ_PHONE_STATE)) return false
+        val tm = telecom(context)
+        return runCatching {
+            tm.callCapablePhoneAccounts.any { h ->
+                tm.getPhoneAccount(h)?.hasCapabilities(android.telecom.PhoneAccount.CAPABILITY_VIDEO_CALLING) == true
+            }
         }.getOrDefault(false)
     }
 
