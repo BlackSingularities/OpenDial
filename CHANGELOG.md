@@ -1,5 +1,10 @@
 # Zmiany
 
+## 1.1.0
+
+- Zgłaszanie błędów i sugestii: nowa pozycja „Zgłoś błąd lub sugestię” – opis trafia prosto do autora przez redzikowski.com, e-mail jest opcjonalny.
+- Po nieoczekiwanym zamknięciu aplikacja przy następnym uruchomieniu proponuje wysłanie raportu o błędzie – tylko za zgodą użytkownika.
+
 ## 1.0.5
 
 - Przypomnienia o urodzinach i rocznicach (Ustawienia → Kontakty, domyślnie wyłączone): rano, o wybranej godzinie, powiadomienie z dzisiejszymi okazjami („Dziś urodziny: Anna · kończy 34 lata”), a w Ulubionych pasek z okazjami na najbliższy tydzień. Sprawdzanie raz na godzinę przez systemowe zadanie – bez stałej usługi w tle, działa też po restarcie telefonu.

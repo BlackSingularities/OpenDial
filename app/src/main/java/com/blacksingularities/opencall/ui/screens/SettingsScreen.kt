@@ -13,6 +13,7 @@ import androidx.compose.material.icons.rounded.Cake
 import androidx.compose.material.icons.rounded.Accessibility
 import androidx.compose.material.icons.rounded.Contrast
 import androidx.compose.material.icons.rounded.Email
+import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.automirrored.rounded.CallMissed
 import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.BarChart
@@ -280,6 +281,9 @@ fun SettingsScreen(vm: AppViewModel, onRequestRole: () -> Unit) {
             }
             ActionRow(Icons.Rounded.Email, tr("Kontakt"), "kontakt@redzikowski.com") {
                 vm.openIntent(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("mailto:kontakt@redzikowski.com")))
+            }
+            com.blacksingularities.opencall.feedback.FeedbackEntry { open ->
+                ActionRow(Icons.Rounded.BugReport, com.blacksingularities.opencall.feedback.FeedbackText.entryTitle, com.blacksingularities.opencall.feedback.FeedbackText.entrySubtitle) { open() }
             }
             ActionRow(Icons.Rounded.LocalCafe, tr("Postaw kawę"), tr("Wesprzyj rozwój na buycoffee.to")) {
                 vm.openIntent(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://buycoffee.to/adamredzikowski")))

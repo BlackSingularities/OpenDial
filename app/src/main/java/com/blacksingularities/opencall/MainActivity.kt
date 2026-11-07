@@ -1,5 +1,6 @@
 package com.blacksingularities.opencall
 
+import com.blacksingularities.opencall.feedback.Feedback
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -33,6 +34,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Feedback.install(this, "opencall")
         enableEdgeToEdge()
         UpdateManager.clearUpdatedNotification(this)
         CallManager.attach(this)
@@ -57,6 +59,7 @@ class MainActivity : ComponentActivity() {
                     window.decorView.setBackgroundColor(if (d) android.graphics.Color.BLACK else android.graphics.Color.WHITE)
                 },
             ) {
+                com.blacksingularities.opencall.feedback.CrashReportPrompt()
                 AppRoot(vm, onRequestRole = ::requestRole, onRequestPermissions = ::requestPermissions)
             }
         }
