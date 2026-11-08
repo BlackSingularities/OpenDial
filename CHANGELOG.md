@@ -1,5 +1,9 @@
 # Zmiany
 
+## 1.1.1
+
+- Zakładka „Kontakty” jest teraz pierwsza na pasku, tuż obok „Wszystkie” – bardziej pod ręką. Aplikacja nadal domyślnie otwiera „Wszystkie”, a „Ulubione” przeszły na koniec paska.
+
 ## 1.1.0
 
 - Zgłaszanie błędów i sugestii: nowa pozycja „Zgłoś błąd lub sugestię” – opis trafia prosto do autora przez redzikowski.com, e-mail jest opcjonalny.

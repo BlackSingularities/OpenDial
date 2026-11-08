@@ -293,9 +293,9 @@ fun MoreMenu(vm: AppViewModel) {
 
 /** Kolejność zakładek głównego ekranu – ta sama dla chipów u góry i przesuwania palcem w bok. */
 fun mainPages(vm: AppViewModel): List<Pair<Int, Int>> = buildList {
-    if (vm.settings.showFavoritesTab) add(0 to 0)
-    for (f in 0..4) add(1 to f)
     add(2 to 0)
+    for (f in 0..4) add(1 to f)
+    if (vm.settings.showFavoritesTab) add(0 to 0)
 }
 
 fun AppViewModel.goPage(page: Pair<Int, Int>) {
