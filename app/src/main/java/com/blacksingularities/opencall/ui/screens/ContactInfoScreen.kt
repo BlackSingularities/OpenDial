@@ -178,6 +178,7 @@ fun ContactInfoScreen(vm: AppViewModel, contactId: Long?, number: String?) {
     Page(
         title = "",
         onBack = { vm.pop() },
+        overlayHeader = true,
         actions = {
             if (d != null) {
                 RoundIcon(if (d.starred) Icons.Rounded.Star else Icons.Rounded.StarBorder, if (d.starred) tr("Usuń z ulubionych") else tr("Dodaj do ulubionych"), active = d.starred) {

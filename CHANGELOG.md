@@ -1,5 +1,9 @@
 # Zmiany
 
+## 1.1.2
+
+- Widok kontaktu: przyciski Wstecz, Ulubione i Edytuj nie siedzą już na osobnym czarnym pasku – unoszą się na górze kontaktu, obok zdjęcia, i zostają na miejscu, gdy treść przewija się pod nimi.
+
 ## 1.1.1
 
 - Zakładka „Kontakty” jest teraz pierwsza na pasku, tuż obok „Wszystkie” – bardziej pod ręką. Aplikacja nadal domyślnie otwiera „Wszystkie”, a „Ulubione” przeszły na koniec paska.

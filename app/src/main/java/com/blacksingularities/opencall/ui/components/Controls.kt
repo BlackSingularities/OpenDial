@@ -115,8 +115,39 @@ fun Page(
     modifier: Modifier = Modifier,
     actions: @Composable RowScope.() -> Unit = {},
     scrollable: Boolean = true,
+    overlayHeader: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    if (overlayHeader) {
+        // Przyciski unoszą się nad treścią (bez osobnego paska z tłem) – treść przewija się pod nimi.
+        Box(
+            modifier
+                .fillMaxSize()
+                .background(Palette.Ink)
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .imePadding(),
+        ) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                    .padding(horizontal = 14.dp)
+                    .padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                content = content,
+            )
+            Row(
+                Modifier.fillMaxWidth().padding(start = 8.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                GlassIconButton(Icons.AutoMirrored.Rounded.ArrowBack, tr("Wstecz"), size = 40.dp, onClick = onBack)
+                Spacer(Modifier.width(12.dp))
+                Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) { actions() }
+            }
+        }
+        return
+    }
     Column(
         modifier
             .fillMaxSize()
