@@ -1,0 +1,23 @@
+{
+  "slug": "opencall",
+  "name": "OpenDial",
+  "label": "telefon · kontakty · historia połączeń",
+  "icon": "icon.png",
+  "url": "https://redzikowski.com/portfolio/opencall",
+  "posters": [
+    {
+      "platform": "android",
+      "file": "android.png",
+      "title": "Telefon, który *szybko znajduje*",
+      "lead": "Klawiatura z wyszukiwaniem T9 po polskich znakach, historia połączeń z filtrami, kontakty i statystyki rozmów.",
+      "shots": [
+        { "src": "../screenshots/android/01-historia.png", "caption": "Historia" },
+        { "src": "../screenshots/android/02-klawiatura.png", "caption": "Klawiatura T9" },
+        { "src": "../screenshots/android/03-kontakty.png", "caption": "Kontakty" },
+        { "src": "../screenshots/android/04-kontakt.png", "caption": "Karta kontaktu" }
+      ],
+      "features": ["T9 z polskimi znakami", "konferencje i drugie połączenie", "blokowanie numerów", "scalanie duplikatów", "statystyki rozmów", "eksport CSV i vCard"],
+      "meta": "Android 10 lub nowszy"
+    }
+  ]
+}

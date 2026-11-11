@@ -1,5 +1,13 @@
 # OpenDial
 
+<!-- posters:start -->
+<p align="center">
+  <img src="docs/posters/android.png" alt="OpenDial – Android" width="460">
+</p>
+
+<p align="center"><a href="https://redzikowski.com/portfolio/opencall">redzikowski.com/portfolio/opencall</a></p>
+<!-- posters:end -->
+
 <img src="artwork/app-icon.png" alt="OpenDial" width="128" />
 
 **Otwarta aplikacja do połączeń i kontaktów dla Androida** – pełny ekran rozmowy, klawiatura z wyszukiwaniem T9, historia połączeń, kontakty z edytorem i vCard, blokowanie numerów, konferencje i statystyki. Bez reklam, bez śledzenia, bez kont.
