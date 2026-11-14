@@ -1,5 +1,9 @@
 # Zmiany
 
+## 1.1.3
+
+- Ikona aplikacji bez tła: na ekranie głównym widać sam kolorowy emblemat, spójnie z trybem „Bez tła” w OpenDesktop.
+
 ## 1.1.2
 
 - Widok kontaktu: przyciski Wstecz, Ulubione i Edytuj nie siedzą już na osobnym czarnym pasku – unoszą się na górze kontaktu, obok zdjęcia, i zostają na miejscu, gdy treść przewija się pod nimi.
