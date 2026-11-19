@@ -33,7 +33,13 @@ class CallActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        com.blacksingularities.opencall.ui.theme.ThemeState.callScreen = true
         com.blacksingularities.opencall.ui.theme.ThemeState.dark = true
+    }
+
+    override fun onPause() {
+        com.blacksingularities.opencall.ui.theme.ThemeState.callScreen = false
+        super.onPause()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

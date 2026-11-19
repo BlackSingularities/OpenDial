@@ -26,6 +26,12 @@ object ThemeState {
 
     /** Tryb głównego okna – przywracany, gdy wraca ono na pierwszy plan po ekranie rozmowy. */
     var appDark = true
+
+    /**
+     * Ekran rozmowy jest na wierzchu. Główne okno działa wtedy dalej w tle i przy rekompozycji
+     * nie może przestawić wspólnego trybu na jasny – tekst rozmowy zrobiłby się czarny na czarnym.
+     */
+    var callScreen = false
 }
 
 object Palette {
@@ -115,7 +121,7 @@ fun isDark(mode: ThemeMode): Boolean = when (mode) {
 fun OpenDialTheme(dark: Boolean? = null, onDarkChanged: (Boolean) -> Unit = {}, content: @Composable () -> Unit) {
     if (dark != null) {
         ThemeState.appDark = dark
-        if (ThemeState.dark != dark) ThemeState.dark = dark
+        if (!ThemeState.callScreen && ThemeState.dark != dark) ThemeState.dark = dark
     }
     val d = dark ?: true
     SideEffect { onDarkChanged(d) }

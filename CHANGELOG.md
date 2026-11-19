@@ -1,5 +1,14 @@
 # Zmiany
 
+## 1.1.4
+
+- Ekran połączenia przychodzącego: stan połączenia małą etykietą nad imieniem, większy awatar z subtelną obwódką i rozchodzącymi się kręgami. Wyciszenie dzwonka i wiadomość jako kafelki jak w widoku kontaktu, a odbierz i odrzuć jako szerokie pigułki jak przycisk połączenia w klawiaturze.
+- Suwak odbierania: sam pasek od krawędzi do krawędzi ekranu, bez kółek na końcach. Pasek wypełnia się zielenią albo czerwienią za gałką, a słuchawka obraca się w „odłożoną” przy przesuwaniu w lewo.
+- Trwająca rozmowa: przełączniki (wycisz, klawiatura, głośnik, zawieś…) jako zaokrąglone kafelki w jednym panelu, większy licznik czasu, rozłączenie szeroką czerwoną pigułką. Przy głośniku strzałka w rogu podpowiada wybór wyjścia dźwięku przytrzymaniem.
+- Połączenie oczekujące: „Zawieś i odbierz” i „Zakończ i odbierz” jako duże wiersze z opisem, co stanie się z obecną rozmową.
+- „Odrzuć z wiadomością”: ciemny panel od dołu z adresatem, gotowe odpowiedzi jako dymki (dotknięcie od razu wysyła) i pole na własną wiadomość.
+- Poprawka: przy jasnym motywie aplikacji imię rozmówcy i część napisów na ekranie rozmowy bywały czarne na czarnym tle.
+
 ## 1.1.3
 
 - Ikona aplikacji bez tła: na ekranie głównym widać sam kolorowy emblemat, spójnie z trybem „Bez tła” w OpenDesktop.

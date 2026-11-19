@@ -5,6 +5,10 @@ import android.telecom.DisconnectCause
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.stateDescription
+import com.blacksingularities.opencall.i18n.I18n
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -22,6 +26,12 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -95,6 +105,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.blacksingularities.opencall.call.CallManager
@@ -222,7 +233,7 @@ fun InCallScreen(
                     Avatar(o.title, o.photoUri, 32.dp)
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(o.title.ifBlank { tr("Numer prywatny") }, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(o.title.ifBlank { tr("Numer prywatny") }, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(if (o.held) tr("Zawieszone · dotknij, aby wrócić") else stateText(o), fontSize = 11.sp, color = Palette.Call.TextDim)
                     }
                     Icon(if (o.held) Icons.Rounded.PhonePaused else Icons.Rounded.PhoneInTalk, null, tint = Palette.Call.TextDim)
@@ -272,16 +283,9 @@ fun InCallScreen(
     }
 
     if (replies && primary != null) {
-        DarkDialog(tr("Odrzuć z wiadomością"), onDismiss = { replies = false }, buttons = { PillButton(tr("Anuluj"), primary = false) { replies = false } }) {
-            Column(Modifier.clip(RoundedCornerShape(16.dp)).background(Color.White.copy(alpha = 0.06f))) {
-                settings.quickReplies.forEach { r ->
-                    ActionRow(Icons.Rounded.Sms, tr(r)) {
-                        replies = false
-                        CallManager.reject(primary.call, tr(r))
-                    }
-                }
-            }
-            Text(tr("Wiadomość wyśle domyślna aplikacja SMS. Treści zmienisz w ustawieniach."), color = Palette.Call.TextDim, fontSize = 12.sp)
+        ReplySheet(primary, settings, onDismiss = { replies = false }) { text ->
+            replies = false
+            CallManager.reject(primary.call, text)
         }
     }
     if (rttPanel && primary != null && !primary.ended) {
@@ -308,6 +312,114 @@ fun InCallScreen(
     }
 }
 
+/**
+ * Odrzucenie z wiadomością: dolny panel jak klawiatura w trakcie rozmowy. Gotowe odpowiedzi
+ * jako dymki wiadomości – dotknięcie od razu odrzuca i wysyła; na dole pole na własny tekst.
+ */
+@Composable
+private fun ReplySheet(c: CallView, settings: AppSettings, onDismiss: () -> Unit, onSend: (String) -> Unit) {
+    var own by remember(c.call) { mutableStateOf("") }
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) { detectTapGestures { onDismiss() } },
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .background(Palette.Call.Panel)
+                    // Dotknięcie panelu nie zamyka go (pochłania je zamiast tła).
+                    .pointerInput(Unit) { detectTapGestures { } }
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
+                    .imePadding()
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 10.dp, bottom = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(Modifier.size(width = 36.dp, height = 4.dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.25f)))
+                Spacer(Modifier.height(16.dp))
+                Text(tr("Odrzuć z wiadomością"), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                val to = c.name ?: PhoneText.pretty(c.number)
+                if (to.isNotBlank()) Text(tr("Do: {0}", to), color = Palette.Call.TextDim, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
+                Spacer(Modifier.height(16.dp))
+                Column(
+                    Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    settings.quickReplies.forEach { r ->
+                        val text = tr(r)
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .reactive(tr("Odrzuć i wyślij: {0}", text), pressScale = 0.97f) { onSend(text) }
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Color.White.copy(alpha = 0.07f))
+                                .padding(start = 16.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(text, color = Color.White, fontSize = 15.sp, lineHeight = 20.sp, modifier = Modifier.weight(1f))
+                            Spacer(Modifier.width(10.dp))
+                            Box(Modifier.size(34.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
+                                Icon(Icons.AutoMirrored.Rounded.Send, null, tint = Color.White, modifier = Modifier.size(17.dp))
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                // Własna wiadomość: pole w kształcie pigułki z przyciskiem wysyłania.
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(50))
+                        .background(Color.White.copy(alpha = 0.07f))
+                        .padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                        if (own.isEmpty()) Text(tr("Własna wiadomość…"), color = Palette.Call.TextFaint, fontSize = 15.sp)
+                        androidx.compose.foundation.text.BasicTextField(
+                            value = own,
+                            onValueChange = { own = it },
+                            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 15.sp),
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(Color.White),
+                            maxLines = 4,
+                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Własna wiadomość…") },
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    val ready = own.isNotBlank()
+                    Box(
+                        Modifier
+                            .reactive(tr("Odrzuć i wyślij"), enabled = ready) { onSend(own.trim()) }
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(if (ready) Color.White else Color.White.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.AutoMirrored.Rounded.Send, null, tint = if (ready) Palette.Call.Ink else Color.White, modifier = Modifier.size(19.dp))
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    tr("Wiadomość wyśle domyślna aplikacja SMS. Treści zmienisz w ustawieniach."),
+                    color = Palette.Call.TextFaint,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+                PillButton(tr("Anuluj"), primary = false, onClick = onDismiss)
+            }
+        }
+    }
+}
+
 private fun stateText(c: CallView): String = when {
     c.ringing -> if (c.video) tr("Połączenie wideo") else tr("Połączenie przychodzące")
     c.dialing -> tr("Łączenie…")
@@ -324,49 +436,52 @@ private fun CallerHeader(c: CallView, ended: Boolean, settings: AppSettings) {
     val wave by pulse.animateFloat(0f, 1f, infiniteRepeatable(tween(1800)), label = "wave")
     val waves = (c.ringing || c.dialing) && !ended
     val waveColor = if (c.ringing) Palette.Answer else Color.White
+    // W trakcie rozmowy awatar ustępuje miejsca przełącznikom; przy dzwonieniu jest największy.
+    val avatarSize by animateDpAsState(if (c.ringing || c.dialing) 132.dp else 112.dp, tween(400), label = "avatar")
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier
-                .size(200.dp)
+                .size(avatarSize + 76.dp)
                 .drawBehind {
+                    val base = avatarSize.toPx() / 2
+                    // Delikatna obwódka dookoła awatara – zdjęcie i inicjały nie zlewają się z tłem.
+                    drawCircle(Color.White.copy(alpha = 0.10f), radius = base + 5.dp.toPx(), style = Stroke(1.dp.toPx()))
                     if (!waves) return@drawBehind
                     // Trzy rozchodzące się kręgi – „dzwoni” widać bez czytania.
-                    val base = 66.dp.toPx()
                     for (i in 0 until 3) {
                         val t = (wave + i / 3f) % 1f
-                        drawCircle(waveColor.copy(alpha = (1f - t) * 0.35f), radius = base + t * (size.minDimension / 2 - base), style = Stroke(2.dp.toPx()))
+                        drawCircle(waveColor.copy(alpha = (1f - t) * 0.32f), radius = base + 6.dp.toPx() + t * (size.minDimension / 2 - base), style = Stroke(1.5.dp.toPx()))
                     }
                 },
             contentAlignment = Alignment.Center,
         ) {
-            Avatar(c.title, c.photoUri, 128.dp, modifier = if (c.ringing) Modifier.scale(scale) else Modifier)
+            Avatar(c.title, c.photoUri, avatarSize, modifier = if (c.ringing) Modifier.scale(scale) else Modifier)
         }
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(4.dp))
+        StatusLabel(c, ended)
+        Spacer(Modifier.height(8.dp))
         // Bez nazwy kontaktu: numer w blokach według kraju („71 731 95 00”).
         val title = c.name ?: PhoneText.pretty(c.number)
         Text(
             title.ifBlank { tr("Numer prywatny") },
-            fontSize = if (title.length > 18) 26.sp else 32.sp,
+            fontSize = if (title.length > 18) 28.sp else 34.sp,
+            lineHeight = if (title.length > 18) 32.sp else 38.sp,
+            // Kolor jawnie: ekran rozmowy jest zawsze ciemny, niezależnie od motywu aplikacji.
+            color = Color.White,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         val sub = buildList {
-            if (c.name != null && c.number.isNotBlank()) add(PhoneText.pretty(c.number))
             c.label?.let { add(it) }
+            if (c.name != null && c.number.isNotBlank()) add(PhoneText.pretty(c.number))
             if (c.conference) add(tr("Konferencja · {0}", c.children))
         }.joinToString(" · ")
-        if (sub.isNotBlank()) Text(sub, fontSize = 15.sp, color = Palette.Call.TextDim, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
-        Spacer(Modifier.height(10.dp))
+        if (sub.isNotBlank()) Text(sub, fontSize = 15.sp, color = Palette.Call.TextDim, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
         if (ended) {
             val dur = if (c.connectTime > 0) PhoneText.duration((System.currentTimeMillis() - c.connectTime) / 1000) else null
-            Text(
-                listOfNotNull(endReason(c.disconnect), dur).joinToString(" · "),
-                color = Palette.Record,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
+            if (dur != null) Text(dur, style = MonoDigits.copy(fontSize = 22.sp), color = Palette.Call.TextDim, modifier = Modifier.padding(top = 14.dp))
         } else if (c.active && c.connectTime > 0) {
             var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
             LaunchedEffect(c.connectTime) {
@@ -375,19 +490,37 @@ private fun CallerHeader(c: CallView, ended: Boolean, settings: AppSettings) {
                     delay(500)
                 }
             }
-            val blink by pulse.animateFloat(0.35f, 1f, infiniteRepeatable(tween(800), RepeatMode.Reverse), label = "live")
-            // Sam licznik z migającą kropką – bez tła i obramowania.
-            Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(8.dp).clip(CircleShape).background(Palette.Answer.copy(alpha = blink)))
-                Spacer(Modifier.width(8.dp))
-                Text(PhoneText.duration(((now - c.connectTime) / 1000).coerceAtLeast(0)), style = MonoDigits.copy(fontSize = 18.sp), color = Color.White)
-            }
-        } else if (c.held) {
-            Text(tr("Zawieszone"), color = Palette.Hold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-        } else {
-            Text(stateText(c), color = Palette.Call.TextDim, fontSize = 15.sp)
+            // Sam licznik – duży, cyframi o stałej szerokości, bez tła i obramowania.
+            Text(
+                PhoneText.duration(((now - c.connectTime) / 1000).coerceAtLeast(0)),
+                style = MonoDigits.copy(fontSize = 22.sp, letterSpacing = 1.sp),
+                color = Color.White,
+                modifier = Modifier.padding(top = 14.dp),
+            )
         }
     }
+}
+
+/**
+ * Stan połączenia jako mała etykieta wersalikami (jak nagłówki sekcji w aplikacji):
+ * przygaszona biel, bursztyn – zawieszone, czerwień – koniec.
+ */
+@Composable
+private fun StatusLabel(c: CallView, ended: Boolean) {
+    val (text, color) = when {
+        ended -> endReason(c.disconnect) to Palette.Record
+        c.ringing -> stateText(c) to Palette.Call.TextDim
+        c.held -> tr("Zawieszone") to Palette.Hold
+        c.dialing -> stateText(c) to Palette.Call.TextDim
+        else -> tr("Rozmowa") to Palette.Call.TextDim
+    }
+    Text(
+        text.uppercase(I18n.locale),
+        color = color,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = 1.4.sp,
+    )
 }
 
 private fun endReason(d: DisconnectCause?): String = when (d?.code) {
@@ -404,57 +537,156 @@ private fun endReason(d: DisconnectCause?): String = when (d?.code) {
 private fun IncomingControls(c: CallView, others: List<CallView>, settings: AppSettings, onReplies: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         if (others.isNotEmpty()) {
-            // Połączenie oczekujące podczas rozmowy.
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                PillButton(tr("Zawieś i odbierz"), icon = Icons.Rounded.PhonePaused) { CallManager.holdAndAnswer(c.call) }
-                PillButton(tr("Zakończ i odbierz"), primary = false, icon = Icons.Rounded.CallEnd) { CallManager.endAndAnswer(c.call) }
+            // Połączenie oczekujące podczas rozmowy: dwie drogi odebrania jako duże wiersze,
+            // pod nimi odrzucenie i wiadomość.
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Color.White.copy(alpha = 0.06f)).padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                WaitingOption(Icons.Rounded.PhonePaused, tr("Zawieś i odbierz"), tr("Obecna rozmowa poczeka"), primary = true) { CallManager.holdAndAnswer(c.call) }
+                WaitingOption(Icons.Rounded.CallEnd, tr("Zakończ i odbierz"), tr("Obecna rozmowa się zakończy")) { CallManager.endAndAnswer(c.call) }
             }
-            Spacer(Modifier.height(18.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                BigButton(Icons.Rounded.CallEnd, tr("Odrzuć"), Palette.Record) { CallManager.reject(c.call) }
-                BigButton(Icons.Rounded.Sms, tr("Wiadomość"), Color.White.copy(alpha = 0.12f), onClick = onReplies)
+            Spacer(Modifier.height(22.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(36.dp), verticalAlignment = Alignment.Top) {
+                CallPill(Icons.Rounded.CallEnd, tr("Odrzuć"), Palette.Record) { CallManager.reject(c.call) }
+                CallTile(Icons.Rounded.Sms, tr("Wiadomość"), onClick = onReplies)
             }
             return@Column
         }
         var silenced by remember(c.call) { mutableStateOf(false) }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 22.dp)) {
-            PillButton(
+        // Akcje poboczne jako kafelki – te same co w widoku kontaktu.
+        Row(horizontalArrangement = Arrangement.spacedBy(28.dp), modifier = Modifier.padding(bottom = 26.dp)) {
+            CallTile(
+                Icons.AutoMirrored.Rounded.VolumeOff,
                 if (silenced) tr("Wyciszono") else tr("Wycisz dzwonek"),
-                primary = false,
-                icon = Icons.AutoMirrored.Rounded.VolumeOff,
+                on = silenced,
             ) {
                 silenced = true
                 CallManager.silenceRinger()
             }
-            PillButton(tr("Wiadomość"), primary = false, icon = Icons.Rounded.Sms, onClick = onReplies)
+            CallTile(Icons.Rounded.Sms, tr("Wiadomość"), onClick = onReplies)
         }
         // Z czytnikiem ekranu przesuwanie gałki jest niewygodne – zawsze dwa przyciski.
         if (settings.swipeToAnswer && !rememberTouchExploration()) {
             AnswerSlider(onAnswer = { CallManager.answer(c.call) }, onDecline = { CallManager.reject(c.call) })
         } else {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Bottom) {
-                BigButton(Icons.Rounded.CallEnd, tr("Odrzuć"), Palette.Record) { CallManager.reject(c.call) }
-                BigButton(Icons.Rounded.Call, tr("Odbierz"), Palette.Answer) { CallManager.answer(c.call) }
+                CallPill(Icons.Rounded.CallEnd, tr("Odrzuć"), Palette.Record) { CallManager.reject(c.call) }
+                CallPill(Icons.Rounded.Call, tr("Odbierz"), Palette.Answer, glow = true) { CallManager.answer(c.call) }
             }
         }
     }
 }
 
+/** Jedna z dróg odebrania połączenia oczekującego: ikona, nazwa i krótki skutek. */
 @Composable
-private fun BigButton(icon: ImageVector, label: String, color: Color, small: Boolean = false, onClick: () -> Unit) {
+private fun WaitingOption(icon: ImageVector, title: String, hint: String, primary: Boolean = false, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .reactive(title, pressScale = 0.97f, onClick = onClick)
+            .clip(RoundedCornerShape(22.dp))
+            .background(if (primary) Color.White else Color.White.copy(alpha = 0.06f))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val fg = if (primary) Palette.Call.Ink else Color.White
+        Box(
+            Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(if (primary) Palette.Answer else Color.White.copy(alpha = 0.1f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, null, tint = Color.White, modifier = Modifier.size(22.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = fg, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text(hint, color = fg.copy(alpha = 0.62f), fontSize = 12.sp)
+        }
+    }
+}
+
+/**
+ * Główny przycisk ekranu rozmowy: szeroka pigułka jak przycisk połączenia w klawiaturze,
+ * opcjonalnie z miękką poświatą w swoim kolorze; podpis pod spodem.
+ */
+@Composable
+private fun CallPill(icon: ImageVector, label: String, color: Color, glow: Boolean = false, showLabel: Boolean = true, onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier
                 .reactive(label, onClick = onClick)
-                .size(if (small) 56.dp else 72.dp)
-                .clip(CircleShape)
+                .drawBehind {
+                    if (!glow) return@drawBehind
+                    drawCircle(
+                        Brush.radialGradient(listOf(color.copy(alpha = 0.32f), Color.Transparent), radius = size.width * 0.85f),
+                        radius = size.width * 0.85f,
+                    )
+                }
+                .size(width = 96.dp, height = 64.dp)
+                .clip(RoundedCornerShape(50))
                 .background(color),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, null, tint = Color.White, modifier = Modifier.size(if (small) 26.dp else 32.dp))
+            Icon(icon, null, tint = Color.White, modifier = Modifier.size(30.dp))
         }
-        Spacer(Modifier.height(6.dp))
-        Text(label, fontSize = 12.sp, color = Palette.Call.TextDim, modifier = Modifier.clearAndSetSemantics {})
+        if (showLabel) {
+            Spacer(Modifier.height(8.dp))
+            Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Palette.Call.TextDim, modifier = Modifier.clearAndSetSemantics {})
+        }
+    }
+}
+
+/** Kafelek akcji w kształcie zaokrąglonego kwadratu (jak w widoku kontaktu); włączony – biały. */
+@Composable
+private fun CallTile(
+    icon: ImageVector,
+    label: String,
+    on: Boolean = false,
+    enabled: Boolean = true,
+    longPressHint: Boolean = false,
+    onLongPress: (() -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    val bg by animateColorAsState(if (on) Color.White else Color.White.copy(alpha = 0.1f), tween(180), label = "tileBg")
+    val fg by animateColorAsState(if (on) Palette.Call.Ink else Color.White, tween(180), label = "tileFg")
+    Column(
+        Modifier
+            .width(92.dp)
+            .reactive(
+                if (longPressHint) tr("{0} · przytrzymaj: wybór wyjścia dźwięku", label) else label,
+                enabled,
+                onLongPress,
+                onClick = onClick,
+            )
+            .semantics { if (on) stateDescription = tr("włączone") },
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(Modifier.size(64.dp).clip(RoundedCornerShape(22.dp)).background(bg), contentAlignment = Alignment.Center) {
+            AnimatedContent(
+                targetState = icon,
+                transitionSpec = { fadeIn(tween(160)) togetherWith fadeOut(tween(120)) },
+                label = "tileIcon",
+            ) { ic -> Icon(ic, null, tint = fg, modifier = Modifier.size(28.dp)) }
+            if (longPressHint) {
+                // Mała strzałka w rogu: przytrzymanie otwiera wybór wyjścia dźwięku.
+                Icon(
+                    Icons.Rounded.ExpandMore,
+                    null,
+                    tint = fg.copy(alpha = 0.7f),
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = 6.dp, bottom = 4.dp).size(14.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            label,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = if (enabled || on) Palette.Call.TextDim else Palette.Call.TextFaint,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.clearAndSetSemantics {},
+        )
     }
 }
 
@@ -479,10 +711,20 @@ private fun AnswerSlider(onAnswer: () -> Unit, onDecline: () -> Unit) {
     val scope = rememberCoroutineScope()
     val offset = remember { Animatable(0f) }
     val density = LocalDensity.current
+    // Pasek sięga samych krawędzi ekranu – wychodzi poza boczny margines kolumny (20 dp).
+    Column(
+        Modifier.layout { m, c ->
+            val extra = 40.dp.roundToPx()
+            val w = c.maxWidth + extra
+            val p = m.measure(c.copy(minWidth = w, maxWidth = w))
+            layout(c.maxWidth, p.height) { p.place(-extra / 2, 0) }
+        },
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
     BoxWithConstraints(
         Modifier
             .fillMaxWidth()
-            .height(68.dp)
+            .height(76.dp)
             .clearAndSetSemantics {
                 contentDescription = tr("Połączenie przychodzące. Przesuń w prawo, aby odebrać, w lewo, aby odrzucić")
                 onClick(label = tr("Odbierz")) { onAnswer(); true }
@@ -491,34 +733,50 @@ private fun AnswerSlider(onAnswer: () -> Unit, onDecline: () -> Unit) {
                     CustomAccessibilityAction(tr("Odrzuć")) { onDecline(); true },
                 )
             }
-            .clip(RoundedCornerShape(50))
-            .background(Color.White.copy(alpha = 0.08f)),
+            .background(Color.White.copy(alpha = 0.07f)),
         contentAlignment = Alignment.Center,
     ) {
-        val knob = 60.dp
+        val knob = 64.dp
         val maxPx = with(density) { ((maxWidth - knob) / 2 - 6.dp).toPx() }
         val progress = (offset.value / maxPx).coerceIn(-1f, 1f)
         val hint = rememberInfiniteTransition(label = "hint")
         val shimmer by hint.animateFloat(0f, 1f, infiniteRepeatable(tween(1400)), label = "shimmer")
-        Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(56.dp).clip(CircleShape).background(Palette.Record.copy(alpha = 0.2f + 0.6f * (-progress).coerceAtLeast(0f))), contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.CallEnd, tr("Odrzuć"), tint = Color.White)
-            }
+        val side = if (progress >= 0f) Palette.Answer else Palette.Record
+        // Ślad gałki: tor wypełnia się kolorem od środka do gałki – widać, ile jeszcze zostało.
+        Box(
+            Modifier.fillMaxSize().drawBehind {
+                val cx = size.width / 2
+                val knobR = knob.toPx() / 2
+                val x = cx + offset.value
+                val left = minOf(cx, x) - knobR
+                val right = maxOf(cx, x) + knobR
+                drawRoundRect(
+                    side.copy(alpha = 0.12f + 0.4f * kotlin.math.abs(progress)),
+                    topLeft = Offset(left, 6.dp.toPx()),
+                    size = androidx.compose.ui.geometry.Size(right - left, size.height - 12.dp.toPx()),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2),
+                )
+            },
+        )
+        Row(Modifier.fillMaxWidth().padding(horizontal = 28.dp), verticalAlignment = Alignment.CenterVertically) {
+            SliderEnd(Icons.Rounded.CallEnd, Palette.Record, (-progress).coerceAtLeast(0f))
             Row(Modifier.weight(1f), horizontalArrangement = Arrangement.Center) {
                 // Strzałki „płyną” od gałki ku obu krawędziom.
                 for (i in 2 downTo 0) Chevron("‹", shimmer, i)
-                Spacer(Modifier.width(knob + 4.dp))
+                Spacer(Modifier.width(knob + 8.dp))
                 for (i in 0..2) Chevron("›", shimmer, i)
             }
-            Box(Modifier.size(56.dp).clip(CircleShape).background(Palette.Answer.copy(alpha = 0.2f + 0.6f * progress.coerceAtLeast(0f))), contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.Call, tr("Odbierz"), tint = Color.White)
-            }
+            SliderEnd(Icons.Rounded.Call, Palette.Answer, progress.coerceAtLeast(0f))
         }
-        val knobColor = when {
-            progress > 0.05f -> Palette.Answer
-            progress < -0.05f -> Palette.Record
-            else -> Color.White
-        }
+        val knobColor by animateColorAsState(
+            when {
+                progress > 0.05f -> Palette.Answer
+                progress < -0.05f -> Palette.Record
+                else -> Color.White
+            },
+            tween(140),
+            label = "knob",
+        )
         Box(
             Modifier
                 .offset { IntOffset(offset.value.roundToInt(), 0) }
@@ -549,14 +807,28 @@ private fun AnswerSlider(onAnswer: () -> Unit, onDecline: () -> Unit) {
                 },
             contentAlignment = Alignment.Center,
         ) {
+            // Słuchawka obraca się płynnie w „odłożoną”, gdy gałka idzie w lewo.
             Icon(
-                if (progress < -0.05f) Icons.Rounded.CallEnd else Icons.Rounded.Call,
+                Icons.Rounded.Call,
                 tr("Odbierz lub odrzuć"),
-                tint = if (knobColor == Color.White) Palette.Call.Ink else Color.White,
-                modifier = Modifier.size(30.dp),
+                tint = if (progress in -0.05f..0.05f) Palette.Call.Ink else Color.White,
+                modifier = Modifier.size(30.dp).graphicsLayer { rotationZ = 135f * (-progress).coerceAtLeast(0f) },
             )
         }
     }
+    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp)) {
+        Text(tr("Odrzuć"), fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Palette.Call.TextFaint, modifier = Modifier.clearAndSetSemantics {})
+        Spacer(Modifier.weight(1f))
+        Text(tr("Odbierz"), fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Palette.Call.TextFaint, modifier = Modifier.clearAndSetSemantics {})
+    }
+    }
+}
+
+/** Cel na końcu paska – sama ikona bez tła; nabiera koloru, gdy gałka się zbliża ([near] 0–1). */
+@Composable
+private fun SliderEnd(icon: ImageVector, color: Color, near: Float) {
+    val tint = androidx.compose.ui.graphics.lerp(color.copy(alpha = 0.75f), Color.White, near)
+    Icon(icon, null, tint = tint, modifier = Modifier.size(26.dp).scale(1f + 0.2f * near))
 }
 
 /** Jedna strzałka podpowiedzi; [index] przesuwa fazę, więc trzy razem dają efekt „płynięcia”. */
@@ -631,35 +903,24 @@ private fun OngoingControls(
         } else {
             buttons
         }
-        all.chunked(3).forEach { row ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                row.forEach { t -> ToggleButton(t) }
-            }
-        }
-        Spacer(Modifier.height(18.dp))
-        // Okrągły, pełny czerwony przycisk z miękką poświatą – czytelny cel, wyraźnie inny od przełączników.
-        Box(
+        // Przełączniki zebrane w jednym panelu – jak karty sekcji w aplikacji.
+        Column(
             Modifier
-                .size(84.dp)
-                .drawBehind {
-                    drawCircle(
-                        Brush.radialGradient(listOf(Palette.Record.copy(alpha = 0.35f), Color.Transparent)),
-                        radius = size.minDimension * 0.75f,
-                    )
-                },
-            contentAlignment = Alignment.Center,
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(32.dp))
+                .background(Color.White.copy(alpha = 0.05f))
+                .padding(vertical = 10.dp),
         ) {
-            Box(
-                Modifier
-                    .reactive(tr("Rozłącz")) { CallManager.hangup(c.call) }
-                    .size(72.dp)
-                    .clip(CircleShape)
-                    .background(Palette.Record),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Rounded.CallEnd, null, tint = Color.White, modifier = Modifier.size(34.dp))
+            all.chunked(3).forEach { row ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    row.forEach { t -> ToggleButton(t) }
+                    repeat(3 - row.size) { Spacer(Modifier.width(92.dp)) }
+                }
             }
         }
+        Spacer(Modifier.height(26.dp))
+        // Szeroka czerwona pigułka z poświatą – ten sam kształt co przycisk połączenia w klawiaturze.
+        CallPill(Icons.Rounded.CallEnd, tr("Rozłącz"), Palette.Record, glow = true, showLabel = false) { CallManager.hangup(c.call) }
     }
 }
 
@@ -767,20 +1028,15 @@ private class Toggle(
 
 @Composable
 private fun ToggleButton(t: Toggle) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(92.dp)) {
-        GlassIconButton(
-            t.icon,
-            if (t.onLongPress != null) tr("{0} · przytrzymaj: wybór wyjścia dźwięku", t.label) else t.label,
-            size = 64.dp,
-            active = t.on,
-            enabled = t.enabled,
-            state = if (t.on) tr("włączone") else null,
-            onLongPress = t.onLongPress,
-            onClick = t.onClick,
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(t.label + if (t.onLongPress != null) " ▾" else "",fontSize = 12.sp, color = if (t.enabled) Palette.Call.TextDim else Palette.Call.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.clearAndSetSemantics {})
-    }
+    CallTile(
+        t.icon,
+        t.label,
+        on = t.on,
+        enabled = t.enabled,
+        longPressHint = t.onLongPress != null,
+        onLongPress = t.onLongPress,
+        onClick = t.onClick,
+    )
 }
 
 @Suppress("DEPRECATION")
@@ -850,6 +1106,7 @@ private fun InCallDialpad(c: CallView, settings: AppSettings, onClose: () -> Uni
     ) {
         Text(
             typed.ifEmpty { " " },
+            color = Color.White,
             fontSize = 28.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
@@ -867,16 +1124,7 @@ private fun InCallDialpad(c: CallView, settings: AppSettings, onClose: () -> Uni
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             PillButton(tr("Ukryj klawiaturę"), primary = false, onClick = onClose)
-            Box(
-                Modifier
-                    .reactive(tr("Rozłącz")) { CallManager.hangup(c.call) }
-                    .size(60.dp)
-                    .clip(CircleShape)
-                    .background(Palette.Record),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Rounded.CallEnd, null, tint = Color.White, modifier = Modifier.size(28.dp))
-            }
+            CallPill(Icons.Rounded.CallEnd, tr("Rozłącz"), Palette.Record, showLabel = false) { CallManager.hangup(c.call) }
         }
     }
 }
